@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test_connection:
-    name: 'Check OIDC Connection'
+    name: 'Check OIDC Connection.'
     runs-on: ubuntu-latest
 
     steps:
