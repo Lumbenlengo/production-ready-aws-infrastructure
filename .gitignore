@@ -1,0 +1,15 @@
+ # Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfplan
+crash.log
+
+# Secrets
+*.tfvars
+*.tfvars.json
+
+# OS
+.DS_Store
+Thumbs.db 
