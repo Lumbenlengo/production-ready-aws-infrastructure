@@ -144,21 +144,29 @@ resource "aws_security_group" "web_sg" {
 
 
 resource "aws_instance" "web_server" {
-  # Amazon Linux 2023 AMI (North Virginia)
-  ami           = "ami-0440d3b780d96b29d"
-  instance_type = "t2.micro"
-
-  # Networking settings
-  # Linking the instance to one of our public subnets
-  subnet_id = aws_subnet.public_1.id
-
-  # Attaching the Security Group we just planned
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
-
-  # Assigning a Public IP so we can access it
+  ami                         = "ami-0440d3b780d96b29d"
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.public_1.id
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
   associate_public_ip_address = true
 
-  # Storage configuration (Best Practice: gp3)
+
+  # USER DATA: Automation Script 
+  # This shell script automates the web server installation
+
+  user_data = <<-EOF
+              #!/bin/bash
+              # Update all system packages
+              dnf update -y
+              # Install Apache Web Server (httpd)
+              dnf install -y httpd
+              # Start the service and enable it on boot
+              systemctl start httpd
+              systemctl enable httpd
+              # Create a custom HTML landing page
+              echo "<html><body><h1>Welcome to Lumbenlengo Production Server</h1><p>Infrastructure Managed by Terraform</p></body></html>" > /var/www/html/index.html
+              EOF
+
   root_block_device {
     volume_size = 8
     volume_type = "gp3"
