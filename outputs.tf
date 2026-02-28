@@ -1,34 +1,26 @@
+
+
+# ROOT OUTPUTS
+# These values are extracted from the modules to be displayed in the terminal
+
+# 1. Networking Outputs
 output "vpc_id" {
-  description = "ID da VPC criada"
-  value       = aws_vpc.main.id
+  description = "The ID of the VPC created by the networking module"
+  value       = module.networking.vpc_id
 }
 
-output "vpc_cidr" {
-  description = "CIDR block da VPC"
-  value       = aws_vpc.main.cidr_block
+output "public_subnet_ids" {
+  description = "The IDs of the public subnets for external access"
+  value       = module.networking.public_subnet_ids
 }
 
-# COMPUTE OUTPUTS
-
+# 2. Compute Outputs
 output "ec2_public_ip" {
-  description = "The Public IP address of the web server"
-  value       = aws_instance.web_server.public_ip
+  description = "The Public IP address to access the web server"
+  value       = module.compute.ec2_public_ip
 }
 
 output "ec2_instance_id" {
-  description = "The ID of the EC2 instance"
-  value       = aws_instance.web_server.id
-}
-
-
-# NETWORK OUTPUTS
-
-output "public_subnets" {
-  description = "List of IDs of public subnets"
-  value       = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-}
-
-output "private_subnets" {
-  description = "List of IDs of private subnets"
-  value       = [aws_subnet.private_1.id, aws_subnet.private_2.id]
+  description = "The unique ID of the web server instance"
+  value       = module.compute.ec2_instance_id
 }
