@@ -24,3 +24,8 @@ output "ec2_instance_id" {
   description = "The unique ID of the web server instance"
   value       = module.compute.ec2_instance_id
 }
+
+output "alb_dns_name" {
+  description = "The DNS name of the load balancer. Use this to access your app!"
+  value       = module.loadbalancer.alb_dns_name
+}

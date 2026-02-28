@@ -1,7 +1,9 @@
 variable "project_name" {
-  type = string
+  description = "The name of the project used for naming resources"
+  type        = string
 }
 
 variable "vpc_id" {
-  type = string
+  description = "The ID of the VPC where security groups will be created"
+  type        = string
 }

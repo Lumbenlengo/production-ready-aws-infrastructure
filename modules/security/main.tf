@@ -1,16 +1,10 @@
-# SECURITY GROUP CONFIGURATION
-
-
-# Resource: AWS Security Group
-# Purpose: Acts as a virtual firewall for the EC2 Instance
-resource "aws_security_group" "web_sg" {
-  name        = "${var.project_name}-web-sg"
-  description = "Allow HTTP and SSH inbound traffic"
+# 1. ALB Security Group (The Front Door)
+# This is public and receives traffic from the internet
+resource "aws_security_group" "alb_sg" {
+  name        = "${var.project_name}-alb-sg"
+  description = "Allow public HTTP traffic to the Load Balancer"
   vpc_id      = var.vpc_id
 
-  # Inbound Rule: HTTP
-  # Port: 80
-  # Purpose: Allows public web traffic to reach the web server
   ingress {
     description = "Allow HTTP from anywhere"
     from_port   = 80
@@ -19,29 +13,46 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Inbound Rule: SSH
-  # Port: 22
-  # Purpose: Allows administrative access via Terminal
-  # Security Note: Using 0.0.0.0/0 is risky; in production, use your specific IP.
-  ingress {
-    description = "Allow SSH from anywhere"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Outbound Rule: All Traffic
-  # Purpose: Allows the server to initiate connections to the internet
-  # Examples: Downloading OS updates, security patches, or connecting to S3.
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1" # -1 means ALL protocols
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "${var.project_name}-web-sg"
+  tags = { Name = "${var.project_name}-alb-sg" }
+}
+
+# 2. Web Server Security Group (The Kitchen)
+# This is private and ONLY receives traffic from the ALB
+resource "aws_security_group" "web_sg" {
+  name        = "${var.project_name}-web-sg"
+  description = "Allow traffic ONLY from the ALB and SSH"
+  vpc_id      = var.vpc_id
+
+  # MAGIC HAPPENS HERE: We don't use CIDR, we use the ALB Security Group ID
+  ingress {
+    description     = "Allow HTTP ONLY from the ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id] 
   }
+
+  ingress {
+    description = "Allow SSH for administration"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # In real production, use your specific IP
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.project_name}-web-sg" }
 }
