@@ -1,11 +1,11 @@
- # EC2 INSTANCE CONFIGURATION
+# EC2 INSTANCE CONFIGURATION
 
 
 resource "aws_instance" "web_server" {
   ami                         = "ami-0440d3b780d96b29d"
   instance_type               = "t2.micro"
-  subnet_id = var.subnet_id
-  vpc_security_group_ids = [var.security_group_id]
+  subnet_id                   = var.subnet_id
+  vpc_security_group_ids      = [var.security_group_id]
   associate_public_ip_address = true
 
 

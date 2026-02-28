@@ -1,4 +1,4 @@
- # SECURITY GROUP CONFIGURATION
+# SECURITY GROUP CONFIGURATION
 
 
 # Resource: AWS Security Group
@@ -6,7 +6,7 @@
 resource "aws_security_group" "web_sg" {
   name        = "${var.project_name}-web-sg"
   description = "Allow HTTP and SSH inbound traffic"
-  vpc_id = var.vpc_id
+  vpc_id      = var.vpc_id
 
   # Inbound Rule: HTTP
   # Port: 80
