@@ -1,4 +1,4 @@
- # 1. The Application Load Balancer (The "Receptionist")
+# 1. The Application Load Balancer (The "Receptionist")
 # This is the public entry point for all your web traffic.
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
@@ -23,11 +23,11 @@ resource "aws_lb_target_group" "main" {
 
   health_check {
     enabled             = true
-    path                = "/"    # ALB will ping your server's root
-    interval            = 30     # Check every 30 seconds
-    timeout             = 5      # Wait 5 seconds for a response
-    healthy_threshold   = 3      # 3 success = "Healthy"
-    unhealthy_threshold = 2      # 2 failures = "Unhealthy"
+    path                = "/" # ALB will ping your server's root
+    interval            = 30  # Check every 30 seconds
+    timeout             = 5   # Wait 5 seconds for a response
+    healthy_threshold   = 3   # 3 success = "Healthy"
+    unhealthy_threshold = 2   # 2 failures = "Unhealthy"
   }
 }
 

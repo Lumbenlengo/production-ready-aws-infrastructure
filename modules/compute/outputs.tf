@@ -1,13 +1,10 @@
-
-# Modules/Compute/outputs.tf
-
-output "ec2_instance_id" {
-  description = "The unique ID of the web server instance"
-  value       = aws_instance.web_server.id
+output "asg_name" {
+  description = "The name of the Auto Scaling Group"
+  value       = aws_autoscaling_group.web_asg.name
 }
 
-output "ec2_public_ip" {
-  description = "The public IP address of the web server"
-  value       = aws_instance.web_server.public_ip
+output "launch_template_id" {
+  description = "The ID of the Launch Template"
+  value       = aws_launch_template.web_server.id
 }
 
