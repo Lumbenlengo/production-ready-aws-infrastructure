@@ -7,17 +7,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY app/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code — app/ package must come before main.py
 COPY app/ ./app/
-COPY main.py .
-COPY templates/ ./templates/
-COPY static/ ./static/
-COPY scripts/ ./scripts/
+COPY app/templates/ ./templates/
+COPY app/static/ ./static/
 
-COPY scripts/health_check.sh /health_check.sh
+COPY app/scripts/health_check.sh /health_check.sh
 RUN chmod +x /health_check.sh
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

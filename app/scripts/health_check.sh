@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/bin/bash
 # app/scripts/health_check.sh
 # Health check script for CodeDeploy
 

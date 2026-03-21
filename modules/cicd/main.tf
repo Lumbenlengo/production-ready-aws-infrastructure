@@ -143,6 +143,11 @@ resource "aws_codebuild_project" "app" {
       name  = "ENVIRONMENT"
       value = var.environment
     }
+
+    environment_variable {
+      name  = "DYNAMODB_TABLE"
+      value = "${var.project_name}-metrics-${var.environment}"
+    }
   }
 
   source {

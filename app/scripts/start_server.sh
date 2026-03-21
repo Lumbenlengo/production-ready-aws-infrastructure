@@ -4,35 +4,40 @@ set -euo pipefail
 
 echo "Starting application..."
 
-REGION=$(curl -sf \
-  -H "X-aws-ec2-metadata-token: $(curl -sf -X PUT \
-    'http://169.254.169.254/latest/api/token' \
-    -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')" \
-  http://169.254.169.254/latest/meta-data/placement/region)
-
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-REPO_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/lumbenlengo-lab-app"
-
-# Use the exact image tag built in this pipeline run.
-# Falls back to :latest if the file is missing (e.g. manual deploy).
 IMAGE_URI_FILE="/opt/app/image_uri.txt"
 if [ -f "$IMAGE_URI_FILE" ]; then
   IMAGE_URI=$(cat "$IMAGE_URI_FILE")
+elif [ -n "${ECR_REPOSITORY_URI:-}" ]; then
+  IMAGE_URI="${ECR_REPOSITORY_URI}:latest"
+  echo "WARNING: image_uri.txt not found, using ECR_REPOSITORY_URI:latest"
 else
-  IMAGE_URI="${REPO_URI}:latest"
-  echo "WARNING: image_uri.txt not found, falling back to :latest"
+  echo "ERROR: image_uri.txt not found and ECR_REPOSITORY_URI not provided."
+  exit 1
 fi
 
 echo "Pulling image: $IMAGE_URI"
+REGISTRY="${IMAGE_URI%%/*}"
+REGION="${REGISTRY#*.ecr.}"
+REGION="${REGION%%.amazonaws.com}"
 aws ecr get-login-password --region "$REGION" \
-  | docker login --username AWS --password-stdin "$REPO_URI"
+  | docker login --username AWS --password-stdin "$REGISTRY"
 
 docker pull "$IMAGE_URI"
+
+TABLE_FILE="/opt/app/dynamodb_table_name.txt"
+if [ -f "$TABLE_FILE" ]; then
+  DYNAMODB_TABLE=$(cat "$TABLE_FILE")
+elif [ -n "${DYNAMODB_TABLE:-}" ]; then
+  echo "WARNING: dynamodb_table_name.txt not found, using DYNAMODB_TABLE env var"
+else
+  echo "ERROR: No DynamoDB table configuration found."
+  exit 1
+fi
 
 docker run -d \
   --name app-container \
   -p 8000:8000 \
-  -e DYNAMODB_TABLE="lumbenlengo-lab-metrics-dev" \
+  -e DYNAMODB_TABLE="$DYNAMODB_TABLE" \
   -e APP_VERSION="${IMAGE_URI##*:}" \
   --restart unless-stopped \
   "$IMAGE_URI"

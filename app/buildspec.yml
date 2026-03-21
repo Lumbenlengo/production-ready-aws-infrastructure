@@ -11,7 +11,7 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - docker build -t $REPOSITORY_URI:latest .
+      - docker build -f app/Dockerfile -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
 
   post_build:
@@ -19,15 +19,13 @@ phases:
       - echo Build completed on `date`
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      # Write the image tag to a file so CodeDeploy scripts can pull the exact
-      # image that was built in this run, rather than always pulling :latest.
-      - echo $REPOSITORY_URI:$IMAGE_TAG > image_uri.txt
+      - echo $REPOSITORY_URI:$IMAGE_TAG > app/image_uri.txt
+      - echo $DYNAMODB_TABLE > app/dynamodb_table_name.txt
 
-# imagedefinitions.json is intentionally absent.
-# That format is for ECS + CodePipeline. This project uses CodeDeploy on EC2.
-# The deployment bundle for CodeDeploy is: appspec.yml + scripts/ + image_uri.txt
 artifacts:
+  base-directory: app
   files:
     - appspec.yml
     - scripts/**/*
     - image_uri.txt
+    - dynamodb_table_name.txt

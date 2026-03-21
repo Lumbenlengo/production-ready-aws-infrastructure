@@ -42,7 +42,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -no-color
+        run: terraform plan -no-color -var-file="environments/dev/terraform.tfvars"
 
       # Terraform Apply is intentionally absent from this pipeline.
       # Apply runs exclusively in deploy-prod.yml after manual approval.

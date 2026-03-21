@@ -16,7 +16,7 @@ def get_table():
     Called per-request so tests can override it without touching boto3.
     """
     dynamodb = boto3.resource("dynamodb")
-    return dynamodb.Table(os.getenv("DYNAMODB_TABLE", "lumbenlengo-lab-metrics-dev"))
+    return dynamodb.Table(os.getenv("DYNAMODB_TABLE", "app-metrics-local"))
 
 
 # ── EC2 Instance Metadata (IMDSv2) ───────────────────────────────────
