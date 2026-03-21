@@ -1,31 +1,52 @@
+# modules/compute/variables.tf
+
 variable "project_name" {
-  type = string
+  description = "Project name for resource naming"
+  type        = string
+}
+
+variable "environment" {
+  description = "Deployment environment (dev/staging/prod)"
+  type        = string
 }
 
 variable "instance_type" {
-  type = string
+  description = "EC2 instance type"
+  type        = string
 }
 
 variable "desired_capacity" {
-  type = number
+  description = "Desired number of ASG instances"
+  type        = number
 }
 
 variable "max_size" {
-  type = number
+  description = "Maximum ASG instances"
+  type        = number
 }
 
 variable "min_size" {
-  type = number
+  description = "Minimum ASG instances"
+  type        = number
 }
 
-variable "public_subnet_ids" {
-  type = list(string)
+variable "private_subnet_ids" {
+  description = "Private subnet IDs for ASG instances"
+  type        = list(string)
 }
 
 variable "security_group_id" {
-  type = string
+  description = "Security group ID for instances"
+  type        = string
 }
 
 variable "target_group_arn" {
-  type = string
+  description = "ALB target group ARN"
+  type        = string
 }
+
+variable "dynamodb_table_arn" {
+  description = "DynamoDB table ARN for IAM policy"
+  type        = string
+}
+

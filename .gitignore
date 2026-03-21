@@ -9,6 +9,11 @@ crash.log
 # Secrets
 *.tfvars
 *.tfvars.json
+!environments/**/*.tfvars
+
+# Python
+__pycache__/
+*.pyc
 
 # OS
 .DS_Store

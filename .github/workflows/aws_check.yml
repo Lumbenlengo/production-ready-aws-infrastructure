@@ -1,16 +1,20 @@
- name: Terraform Infrastructure Pipeline
+name: Terraform Infrastructure Pipeline
 
- on:
+on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
 
- permissions:
+permissions:
   id-token: write
   contents: read
 
- jobs:
+env:
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_api_key: ${{ secrets.API_KEY }}
+
+jobs:
   terraform:
     name: Terraform
     runs-on: ubuntu-latest
@@ -22,24 +26,23 @@
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::678632990341:role/GitHubActions-Terraform-Role 
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend=false
 
       - name: Terraform Format Check
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Validate
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -no-color
 
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve
+      # Terraform Apply is intentionally absent from this pipeline.
+      # Apply runs exclusively in deploy-prod.yml after manual approval.
