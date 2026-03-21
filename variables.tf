@@ -89,13 +89,30 @@ variable "enable_waf_association" {
 
 # Secrets
 variable "db_password" {
-  description = "Database password injected into Secrets Manager."
+  description = <<-EOT
+    Database password injected into Secrets Manager.
+
+    Never set a default here. Supply via for example:
+      export TF_VAR_db_password="..."
+    or pass through your CI/CD pipeline secrets.
+  EOT
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.db_password) >= 16
+    error_message = "db_password must be at least 16 characters."
+  }
 }
 
 variable "api_key" {
-  description = "API key injected into SSM Parameter Store as SecureString."
+  description = <<-EOT
+    API key injected into SSM Parameter Store as an encrypted SecureString.
+
+    Never set a default here. Supply via for example:
+      export TF_VAR_api_key="..."
+    or pass through your CI/CD pipeline secrets.
+  EOT
   type        = string
   sensitive   = true
 }
