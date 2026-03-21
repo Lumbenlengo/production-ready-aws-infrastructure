@@ -1,0 +1,57 @@
+name: 'Deploy to Production'
+
+# Manual approval is enforced by the GitHub Environment protection rule,
+# not by a step in this workflow.
+# Configure it at: Settings → Environments → production → Required reviewers
+
+on:
+  push:
+    branches: [ main, production ]
+
+env:
+  TF_VERSION: '1.5.0'
+  AWS_REGION: 'us-east-1'
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_api_key: ${{ secrets.API_KEY }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-prod:
+    name: 'Deploy to Production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app.lumbenlengo.com
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+        role-session-name: GitHubActions
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Terraform Init
+      run: terraform init -backend-config="key=prod/terraform.tfstate"
+
+    - name: Terraform Plan
+      run: terraform plan -no-color -var-file="environments/prod/terraform.tfvars"
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve -var-file="environments/prod/terraform.tfvars"
+
+    - name: Deployment Complete
+      run: |
+        echo "Deployed to Production https://app.lumbenlengo.com"
+        echo "Rollback alarms active: CPU and 5XX errors will trigger auto-rollback"
