@@ -1,52 +1,91 @@
-# Create the main Virtual Private Cloud (VPC)
-# This is your private data center in the AWS cloud
+# modules/networking/main.tf
+
+# Fetch available AZs dynamically — no hardcoded us-east-1a/b
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+# VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags = {
-    Name = "${var.project_name}-vpc"
+    Name        = "${var.project_name}-vpc"
+    Environment = var.environment
+    ManagedBy   = "terraform"
   }
 }
 
-# 1. Internet Gateway (IGW)
-# The "Front Door" that connects your VPC to the public internet
+# Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.project_name}-igw"
+    Name        = "${var.project_name}-igw"
+    Environment = var.environment
   }
 }
 
-# 2. Public Subnet 1 (Availability Zone A)
-# Used for resources that need to be reachable from the internet (e.g., Load Balancer)
-resource "aws_subnet" "public_1" {
+# Public Subnets — CIDRs derived from vpc_cidr so they always stay in range
+resource "aws_subnet" "public" {
+  count = 2
+
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-east-1a"
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index + 1)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-1"
+    Name        = "${var.project_name}-public-${count.index + 1}"
+    Environment = var.environment
+    Tier        = "public"
   }
 }
 
-# 3. Public Subnet 2 (Availability Zone B - For High Availability)
-resource "aws_subnet" "public_2" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "us-east-1b"
-  map_public_ip_on_launch = true
+# Private Subnets
+resource "aws_subnet" "private" {
+  count = 2
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name = "${var.project_name}-public-2"
+    Name        = "${var.project_name}-private-${count.index + 1}"
+    Environment = var.environment
+    Tier        = "private"
   }
 }
 
-# 4. Route Table for Public Subnets
-# Acts as a GPS telling traffic how to reach the internet via the IGW
+# Elastic IPs for NAT Gateways
+resource "aws_eip" "nat" {
+  count  = 2
+  domain = "vpc"
+
+  tags = {
+    Name        = "${var.project_name}-eip-${count.index + 1}"
+    Environment = var.environment
+  }
+}
+
+# NAT Gateways — one per AZ for high availability
+resource "aws_nat_gateway" "main" {
+  count = 2
+
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = {
+    Name        = "${var.project_name}-nat-${count.index + 1}"
+    Environment = var.environment
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -56,41 +95,47 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-public-rt"
+    Name        = "${var.project_name}-public-rt"
+    Environment = var.environment
   }
 }
 
-# 5. Route Table Associations
-# Connecting our public subnets to the routing rules defined above
-resource "aws_route_table_association" "public_1" {
-  subnet_id      = aws_subnet.public_1.id
+resource "aws_route_table_association" "public" {
+  count = 2
+
+  subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table_association" "public_2" {
-  subnet_id      = aws_subnet.public_2.id
-  route_table_id = aws_route_table.public.id
-}
+# Private Route Tables — each points to its own NAT Gateway
+resource "aws_route_table" "private" {
+  count  = 2
+  vpc_id = aws_vpc.main.id
 
-# 6. Private Subnet 1 (Availability Zone A)
-# Isolated area for sensitive resources like Databases
-resource "aws_subnet" "private_1" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.10.0/24"
-  availability_zone = "us-east-1a"
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
+  }
 
   tags = {
-    Name = "${var.project_name}-private-1"
+    Name        = "${var.project_name}-private-rt-${count.index + 1}"
+    Environment = var.environment
   }
 }
 
-# 7. Private Subnet 2 (Availability Zone B)
-resource "aws_subnet" "private_2" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.11.0/24"
-  availability_zone = "us-east-1b"
+resource "aws_route_table_association" "private" {
+  count = 2
+
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}
+
+# Route 53 Hosted Zone
+resource "aws_route53_zone" "main" {
+  name = var.domain_name
 
   tags = {
-    Name = "${var.project_name}-private-2"
+    Name        = "${var.project_name}-hosted-zone"
+    Environment = var.environment
   }
 }

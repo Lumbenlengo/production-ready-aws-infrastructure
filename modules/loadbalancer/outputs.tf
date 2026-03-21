@@ -1,13 +1,31 @@
-# 1. The website URL (DNS Name)
-# The "receipt" that says: "Here is the link to your website!"
+# modules/loadbalancer/outputs.tf
+
 output "alb_dns_name" {
-  description = "The DNS name of the load balancer to access the application"
+  description = "DNS name of the ALB"
   value       = aws_lb.main.dns_name
 }
 
-# 2. The Kitchen ID (Target Group ARN)
-# The "receipt" that says: "This is the ID of the kitchen where the cooks must enter"
+output "alb_arn" {
+  description = "ARN of the ALB"
+  value       = aws_lb.main.arn
+}
+
+output "alb_security_group_id" {
+  description = "Security group ID of the ALB"
+  value       = aws_security_group.alb_sg.id
+}
+
 output "target_group_arn" {
-  description = "The ARN of the target group to attach instances or ASGs"
+  description = "Target group ARN"
   value       = aws_lb_target_group.main.arn
+}
+
+output "target_group_name" {
+  description = "Target group name"
+  value       = aws_lb_target_group.main.name
+}
+
+output "certificate_arn" {
+  description = "ARN of the validated ACM certificate"
+  value       = aws_acm_certificate_validation.cert.certificate_arn
 }

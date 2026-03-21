@@ -1,58 +1,73 @@
-# 1. ALB Security Group (The Front Door)
-# This is public and receives traffic from the internet
-resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow public HTTP traffic to the Load Balancer"
+# modules/security/main.tf
+# Web server security group and GuardDuty.
+# ACM certificate lives exclusively in modules/loadbalancer/main.tf.
+
+# Web Server Security Group
+# Allows port 8000 from ALB only. SSH is optional — prefer SSM Session Manager.
+resource "aws_security_group" "web_sg" {
+  name        = "${var.project_name}-web-sg-${var.environment}"
+  description = "Allow traffic from ALB on port 8000; optional SSH from trusted IP"
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "Allow HTTP from anywhere"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "App port from ALB only"
+    from_port       = 8000
+    to_port         = 8000
+    protocol        = "tcp"
+    security_groups = [var.alb_sg_id]
+  }
+
+  # SSH rule is only created when my_ip is explicitly provided.
+  # Leave my_ip = null in prod and rely on SSM Session Manager instead.
+  dynamic "ingress" {
+    for_each = var.my_ip != null ? [var.my_ip] : []
+    content {
+      description = "SSH from trusted IP"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
   }
 
   egress {
+    description = "Allow all outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${var.project_name}-alb-sg" }
+  tags = {
+    Name        = "${var.project_name}-web-sg"
+    Environment = var.environment
+  }
 }
 
-# 2. Web Server Security Group (The Kitchen)
-# This is private and ONLY receives traffic from the ALB
-resource "aws_security_group" "web_sg" {
-  name        = "${var.project_name}-web-sg"
-  description = "Allow traffic ONLY from the ALB and SSH"
-  vpc_id      = var.vpc_id
+# GuardDuty Detector
+resource "aws_guardduty_detector" "main" {
+  enable = true
 
-  # MAGIC HAPPENS HERE: We don't use CIDR, we use the ALB Security Group ID
-  ingress {
-    description     = "Allow HTTP ONLY from the ALB"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+  datasources {
+    s3_logs {
+      enable = true
+    }
+    kubernetes {
+      audit_logs {
+        enable = false # Set to true if running EKS
+      }
+    }
+    malware_protection {
+      scan_ec2_instance_with_findings {
+        ebs_volumes {
+          enable = true
+        }
+      }
+    }
   }
 
-  ingress {
-    description = "Allow SSH for administration"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # In real production, use your specific IP
+  tags = {
+    Name        = "${var.project_name}-guardduty"
+    Environment = var.environment
   }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${var.project_name}-web-sg" }
 }

@@ -1,0 +1,33 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - docker build -t $REPOSITORY_URI:latest .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      # Write the image tag to a file so CodeDeploy scripts can pull the exact
+      # image that was built in this run, rather than always pulling :latest.
+      - echo $REPOSITORY_URI:$IMAGE_TAG > image_uri.txt
+
+# imagedefinitions.json is intentionally absent.
+# That format is for ECS + CodePipeline. This project uses CodeDeploy on EC2.
+# The deployment bundle for CodeDeploy is: appspec.yml + scripts/ + image_uri.txt
+artifacts:
+  files:
+    - appspec.yml
+    - scripts/**/*
+    - image_uri.txt
