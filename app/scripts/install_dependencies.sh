@@ -8,5 +8,5 @@ echo "Preparing host dependencies..."
 # This hook keeps deployment idempotent and ensures script files are executable.
 chmod +x /opt/app/scripts/*.sh || true
 
-echo "Host dependency check complete."
+"Host dependency check complete."
 exit 0
