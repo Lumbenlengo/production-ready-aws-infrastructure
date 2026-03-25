@@ -7,6 +7,7 @@ variable "project_name" {
 variable "environment" {
   description = "Deployment environment (dev/staging/prod)"
   type        = string
+
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "environment must be dev, staging, or prod."
@@ -17,43 +18,39 @@ variable "environment" {
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
-  default     = "10.0.0.0/16"
+
 }
 
 # Compute
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.micro"
 }
 
 variable "desired_capacity" {
   description = "Desired number of instances"
   type        = number
-  default     = 2
 }
 
 variable "max_size" {
   description = "Maximum instances in ASG"
   type        = number
-  default     = 4
 }
 
 variable "min_size" {
   description = "Minimum instances in ASG"
   type        = number
-  default     = 2
 }
 
 # DNS
 variable "domain_name" {
-  description = "Domain name (e.g., app.lumbenlengo.com)"
+  description = "Domain name"
   type        = string
 }
 
 # Security
 variable "my_ip" {
-  description = "Your public IP for SSH access (format: x.x.x.x/32). Prefer SSM — leave empty to disable SSH."
+  description = "SSH access IP. Empty = use SSM Session Manager (recommended)."
   type        = string
   default     = null
 }
@@ -61,7 +58,7 @@ variable "my_ip" {
 variable "alert_email" {
   description = "Email address for CloudWatch alarm notifications"
   type        = string
-  default     = "admin@lumbenlengo.com"
+
 }
 
 # GitHub

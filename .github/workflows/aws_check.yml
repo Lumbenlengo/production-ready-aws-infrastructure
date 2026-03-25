@@ -1,10 +1,8 @@
-name: Terraform Infrastructure Pipeline
+name: Terraform Infrastructure Check
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]  
 
 permissions:
   id-token: write
@@ -15,8 +13,8 @@ env:
   TF_VAR_api_key: ${{ secrets.API_KEY }}
 
 jobs:
-  terraform:
-    name: Terraform
+  terraform-check:
+    name: Terraform Validate & Plan
     runs-on: ubuntu-latest
 
     steps:
@@ -31,6 +29,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.0'
 
       - name: Terraform Init
         run: terraform init -backend=false
@@ -42,7 +42,28 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
+        id: plan
         run: terraform plan -no-color -var-file="environments/dev/terraform.tfvars"
 
-      # Terraform Apply is intentionally absent from this pipeline.
-      # Apply runs exclusively in deploy-prod.yml after manual approval.
+      - name: Comment Plan on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: ${{ steps.plan.outputs.stdout }}
+        with:
+          script: |
+            const output = `#### Terraform Plan 📖
+            <details><summary>Show Plan</summary>
+
+            \`\`\`
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })

@@ -28,3 +28,5 @@ opentelemetry-exporter-otlp==1.22.0
 
 # System metrics (optional)
 psutil==5.9.8
+
+httpx==0.25.0
