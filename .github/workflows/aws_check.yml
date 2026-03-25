@@ -2,7 +2,7 @@ name: Terraform Infrastructure Check
 
 on:
   pull_request:
-    branches: [ main, develop ]  
+    branches: [ main, develop ]
 
 permissions:
   id-token: write
@@ -16,7 +16,6 @@ jobs:
   terraform-check:
     name: Terraform Validate & Plan
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,12 +29,10 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-         terraform_version: '1.10.3'
-
-        
+          terraform_version: '1.10.3'
+          terraform_wrapper: false # Prevents interference with the init phase
 
       - name: Terraform Init
-        
         run: terraform init -backend-config="key=dev/terraform.tfstate"
 
       - name: Terraform Format Check
@@ -55,7 +52,7 @@ jobs:
           PLAN: ${{ steps.plan.outputs.stdout }}
         with:
           script: |
-            const output = `#### Terraform Plan 
+            const output = `#### Terraform Plan 📖
             <details><summary>Show Plan</summary>
 
             \`\`\`

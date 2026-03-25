@@ -11,8 +11,7 @@ variable "environment" {
   type        = string
 
   validation {
-    # Inclusion of 'development' to match common GitHub Environment names
-    # Allowing empty string "" prevents errors during the 'terraform init' phase
+    # The 'var.environment == ""' allows the 'init' phase to skip the check
     condition     = var.environment == "" || contains(["dev", "development", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, development, staging, or prod."
   }
@@ -27,94 +26,88 @@ variable "vpc_cidr" {
 }
 
 # ==========================================
-# Compute (Auto Scaling Group)
+# Compute
 # ==========================================
 variable "instance_type" {
-  description = "EC2 instance type (e.g., t3.micro)"
+  description = "EC2 instance type"
   type        = string
 }
 
 variable "desired_capacity" {
-  description = "Desired number of instances in the ASG"
+  description = "Desired number of instances"
   type        = number
 }
 
 variable "max_size" {
-  description = "Maximum number of instances in the ASG"
+  description = "Maximum instances in ASG"
   type        = number
 }
 
 variable "min_size" {
-  description = "Minimum number of instances in the ASG"
+  description = "Minimum instances in ASG"
   type        = number
 }
 
 # ==========================================
-# DNS & Domains
+# DNS & Security
 # ==========================================
 variable "domain_name" {
-  description = "The root domain name (e.g., patriciolumbe.com)"
+  description = "Root domain name"
   type        = string
 }
 
-# ==========================================
-# Security & Monitoring
-# ==========================================
 variable "my_ip" {
-  description = "SSH access IP. Leave empty to use SSM Session Manager (recommended)."
+  description = "IP for SSH access"
   type        = string
   default     = null
 }
 
 variable "alert_email" {
-  description = "Email address for CloudWatch alarm notifications via SNS"
+  description = "Email for CloudWatch notifications"
   type        = string
 }
 
 # ==========================================
-# GitHub CI/CD Integration
+# CI/CD & WAF
 # ==========================================
 variable "github_owner" {
-  description = "GitHub username or organization name"
+  description = "GitHub username/org"
   type        = string
 }
 
 variable "github_repo_name" {
-  description = "GitHub repository name"
+  description = "Repository name"
   type        = string
 }
 
 variable "github_repo_url" {
-  description = "The full HTTPS URL of the GitHub repository"
+  description = "Full repository URL"
   type        = string
 }
 
-# ==========================================
-# WAF (Web Application Firewall)
-# ==========================================
 variable "enable_waf_association" {
-  description = "Whether to associate WAF with the ALB. Set to true after the ALB is created."
+  description = "Associate WAF with ALB"
   type        = bool
   default     = false
 }
 
 # ==========================================
-# Secrets (Injected via Environment Variables)
+# Secrets (Injected via Environment)
 # ==========================================
 variable "db_password" {
-  description = "Database password for AWS Secrets Manager. Must be 16+ characters."
+  description = "Database password (min 16 chars)"
   type        = string
   sensitive   = true
 
   validation {
-    # Condition allows empty string during 'init' but enforces 16 chars during 'plan/apply'
+    # Crucial: allows empty string during 'init' but enforces length during 'plan'
     condition     = var.db_password == "" || length(var.db_password) >= 16
     error_message = "The db_password must be at least 16 characters long."
   }
 }
 
 variable "api_key" {
-  description = "API Key stored in SSM Parameter Store as a SecureString"
+  description = "API Key for SSM"
   type        = string
   sensitive   = true
 }
