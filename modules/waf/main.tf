@@ -93,8 +93,12 @@ resource "aws_wafv2_web_acl" "main" {
 # Associate WAF with ALB.
 # Set enable_waf_association = true in terraform.tfvars after the first apply
 # creates the ALB, then run terraform apply again.
+
+
+# Associate WAF with ALB.
 resource "aws_wafv2_web_acl_association" "main" {
-  count = var.enable_association && var.alb_arn != "" ? 1 : 0
+
+  count = var.enable_association ? 1 : 0
 
   resource_arn = var.alb_arn
   web_acl_arn  = aws_wafv2_web_acl.main.arn
