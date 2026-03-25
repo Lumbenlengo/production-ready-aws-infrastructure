@@ -1,7 +1,7 @@
 # environments/dev/terraform.tfvars
 
 project_name     = "lumbenlengo-dev"
-environment      = "development"
+environment      = "dev"
 domain_name      = "api.patriciolumbe.com"
 instance_type    = "t3.micro"
 desired_capacity = 1
