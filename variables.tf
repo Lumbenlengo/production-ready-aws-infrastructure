@@ -1,4 +1,6 @@
-# Project metadata
+# ==========================================
+# Project Metadata
+# ==========================================
 variable "project_name" {
   description = "Base name for all resources"
   type        = string
@@ -9,61 +11,71 @@ variable "environment" {
   type        = string
 
   validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "environment must be dev, staging, or prod."
+    # Inclusion of 'development' to match common GitHub Environment names
+    # Allowing empty string "" prevents errors during the 'terraform init' phase
+    condition     = var.environment == "" || contains(["dev", "development", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, development, staging, or prod."
   }
 }
 
+# ==========================================
 # Networking
+# ==========================================
 variable "vpc_cidr" {
-  description = "CIDR block for VPC"
+  description = "CIDR block for the VPC"
   type        = string
-
 }
 
-# Compute
+# ==========================================
+# Compute (Auto Scaling Group)
+# ==========================================
 variable "instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 instance type (e.g., t3.micro)"
   type        = string
 }
 
 variable "desired_capacity" {
-  description = "Desired number of instances"
+  description = "Desired number of instances in the ASG"
   type        = number
 }
 
 variable "max_size" {
-  description = "Maximum instances in ASG"
+  description = "Maximum number of instances in the ASG"
   type        = number
 }
 
 variable "min_size" {
-  description = "Minimum instances in ASG"
+  description = "Minimum number of instances in the ASG"
   type        = number
 }
 
-# DNS
+# ==========================================
+# DNS & Domains
+# ==========================================
 variable "domain_name" {
-  description = "Domain name"
+  description = "The root domain name (e.g., patriciolumbe.com)"
   type        = string
 }
 
-# Security
+# ==========================================
+# Security & Monitoring
+# ==========================================
 variable "my_ip" {
-  description = "SSH access IP. Empty = use SSM Session Manager (recommended)."
+  description = "SSH access IP. Leave empty to use SSM Session Manager (recommended)."
   type        = string
   default     = null
 }
 
 variable "alert_email" {
-  description = "Email address for CloudWatch alarm notifications"
+  description = "Email address for CloudWatch alarm notifications via SNS"
   type        = string
-
 }
 
-# GitHub
+# ==========================================
+# GitHub CI/CD Integration
+# ==========================================
 variable "github_owner" {
-  description = "GitHub username or organisation"
+  description = "GitHub username or organization name"
   type        = string
 }
 
@@ -73,43 +85,36 @@ variable "github_repo_name" {
 }
 
 variable "github_repo_url" {
-  description = "Full GitHub repository URL"
+  description = "The full HTTPS URL of the GitHub repository"
   type        = string
 }
 
-# WAF
+# ==========================================
+# WAF (Web Application Firewall)
+# ==========================================
 variable "enable_waf_association" {
-  description = "Associate WAF with ALB. Set to true after the ALB exists."
+  description = "Whether to associate WAF with the ALB. Set to true after the ALB is created."
   type        = bool
   default     = false
 }
 
-# Secrets
+# ==========================================
+# Secrets (Injected via Environment Variables)
+# ==========================================
 variable "db_password" {
-  description = <<-EOT
-    Database password injected into Secrets Manager.
-
-    Never set a default here. Supply via for example:
-      export TF_VAR_db_password="..."
-    or pass through your CI/CD pipeline secrets.
-  EOT
+  description = "Database password for AWS Secrets Manager. Must be 16+ characters."
   type        = string
   sensitive   = true
 
   validation {
-    condition     = length(var.db_password) >= 16
-    error_message = "db_password must be at least 16 characters."
+    # Condition allows empty string during 'init' but enforces 16 chars during 'plan/apply'
+    condition     = var.db_password == "" || length(var.db_password) >= 16
+    error_message = "The db_password must be at least 16 characters long."
   }
 }
 
 variable "api_key" {
-  description = <<-EOT
-    API key injected into SSM Parameter Store as an encrypted SecureString.
-
-    Never set a default here. Supply via for example:
-      export TF_VAR_api_key="..."
-    or pass through your CI/CD pipeline secrets.
-  EOT
+  description = "API Key stored in SSM Parameter Store as a SecureString"
   type        = string
   sensitive   = true
 }
