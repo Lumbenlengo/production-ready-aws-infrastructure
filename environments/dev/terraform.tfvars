@@ -1,4 +1,4 @@
-project_name     = "lumbenlengo"        
+project_name     = "lumbenlengo"
 environment      = "dev"
 domain_name      = "api.patriciolumbe.com"
 instance_type    = "t3.micro"
