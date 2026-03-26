@@ -20,10 +20,13 @@ resource "aws_iam_role" "config" {
   }
 }
 
+
 resource "aws_iam_role_policy_attachment" "config" {
   role       = aws_iam_role.config.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSConfigRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole"
 }
+
+
 
 resource "aws_s3_bucket" "config" {
   bucket        = "${var.project_name}-config-${var.environment}"
@@ -175,14 +178,19 @@ resource "aws_iam_role_policy_attachment" "backup" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
 }
 
+
+
 resource "aws_backup_vault" "main" {
-  name = "${var.project_name}-backup-vault-${var.environment}"
+  name          = "${var.project_name}-backup-vault-${var.environment}"
+  force_destroy = true
 
   tags = {
     Name        = "${var.project_name}-backup-vault"
     Environment = var.environment
   }
 }
+
+
 
 resource "aws_backup_plan" "main" {
   name = "${var.project_name}-backup-plan-${var.environment}"

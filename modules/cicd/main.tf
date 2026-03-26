@@ -338,10 +338,12 @@ resource "aws_iam_role" "codedeploy" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "codedeploy" {
+
+  resource "aws_iam_role_policy_attachment" "codedeploy" {
   role       = aws_iam_role.codedeploy.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRole"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
 }
+
 
 resource "aws_codedeploy_deployment_group" "app" {
   app_name               = aws_codedeploy_app.app.name
