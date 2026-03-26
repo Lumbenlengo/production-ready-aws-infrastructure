@@ -1,69 +1,52 @@
-name: 'Destroy Infrastructure'
+name: Deploy — Production
 
 on:
-  workflow_dispatch:          # ← Só executa quando TU clicares manualmente
-    inputs:
-      environment:
-        description: 'Environment to destroy'
-        required: true
-        type: choice
-        options:
-          - dev
-          - staging
-          - prod
-      confirmation:
-        description: 'Type "DESTROY" to confirm'
-        required: true
-        type: string
-
-env:
-  TF_VERSION: '1.5.0'
-  AWS_REGION: 'us-east-1'
-  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-  TF_VAR_api_key: ${{ secrets.API_KEY }}
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  destroy:
-    name: 'Destroy ${{ github.event.inputs.environment }}'
+  deploy:
+    name: Terraform Apply Production
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
-    
+    environment: production
+
+    env:
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_api_key: ${{ secrets.API_KEY }}
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActionsDestroy
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ env.TF_VERSION }}
+          terraform_version: '1.10.3'
+          terraform_wrapper: false
 
       - name: Terraform Init
-        run: terraform init -backend-config="key=${{ github.event.inputs.environment }}/terraform.tfstate"
+        run: terraform init -backend-config="key=prod/terraform.tfstate"
 
-      - name: Terraform Plan Destroy
-        id: plan
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
         run: |
-          terraform plan -destroy -no-color \
-            -var-file="environments/${{ github.event.inputs.environment }}/terraform.tfvars" \
-            -out=destroy.tfplan
+          terraform plan \
+            -no-color \
+            -out=tfplan \
+            -var-file="environments/prod/terraform.tfvars"
 
-      - name: Confirm Destroy
-        if: github.event.inputs.confirmation != 'DESTROY'
-        run: |
-          echo "❌ Confirmation failed. You must type DESTROY to proceed."
-          exit 1
-
-      - name: Terraform Destroy
-        if: github.event.inputs.confirmation == 'DESTROY'
-        run: terraform apply destroy.tfplan
+      - name: Terraform Apply
+        run: terraform apply -no-color -auto-approve tfplan

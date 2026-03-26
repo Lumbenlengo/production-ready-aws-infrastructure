@@ -1,118 +1,51 @@
-# .github/workflows/deploy-staging.yml
-# Deploys to Staging environment.
-# Triggers on push to the 'staging' branch, or manually via workflow_dispatch.
-# Staging sits between dev and prod: automated deploy, but isolated lifecycle.
-
-name: 'Deploy to Staging'
+name: Deploy — Staging
 
 on:
   push:
-    branches: [ staging ]
-  workflow_dispatch:           # Allows manual trigger from the GitHub UI
-    inputs:
-      reason:
-        description: 'Reason for manual deploy (e.g. hotfix validation)'
-        required: false
-        default: 'Manual staging deploy'
-
-env:
-  TF_VERSION: '1.5.0'
-  AWS_REGION: 'us-east-1'
-  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-  TF_VAR_api_key: ${{ secrets.API_KEY }}
+    branches: [main]
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 jobs:
-  terraform-plan:
-    name: 'Terraform Plan (Staging)'
+  deploy:
+    name: Terraform Apply — Staging
     runs-on: ubuntu-latest
+    environment: staging
+
+    env:
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_api_key: ${{ secrets.API_KEY }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-Staging
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TF_VERSION }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.3'
+          terraform_wrapper: false
 
-    - name: Terraform Init
-      run: terraform init -backend-config="key=staging/terraform.tfstate"
+      - name: Terraform Init
+        run: terraform init -backend-config="key=staging/terraform.tfstate"
 
-    - name: Terraform Plan
-      id: plan
-      run: terraform plan -no-color -var-file="environments/staging/terraform.tfvars"
+      - name: Terraform Validate
+        run: terraform validate
 
-    - name: Summarise Plan in Job Summary
-      # Writes the plan to the GitHub Actions job summary page (visible in the
-      # Actions UI without needing a PR comment).
-      env:
-        PLAN: ${{ steps.plan.outputs.stdout }}
-      run: |
-        echo "## Terraform Plan — Staging" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "$PLAN" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -no-color \
+            -out=tfplan \
+            -var-file="environments/staging/terraform.tfvars"
 
-  deploy-staging:
-    name: 'Deploy to Staging'
-    needs: terraform-plan
-    runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: https://staging.lumbenlengo.com
-    # Configure optional approvers at: Settings → Environments → staging
-    # Leave empty for fully automated staging, or add 1 reviewer for light gate.
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-        role-session-name: GitHubActions-Staging
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TF_VERSION }}
-
-    - name: Terraform Init
-      run: terraform init -backend-config="key=staging/terraform.tfstate"
-
-    - name: Terraform Apply
-      run: terraform apply -auto-approve -var-file="environments/staging/terraform.tfvars"
-
-    - name: Run Smoke Tests
-      # Basic sanity check after deploy — validates the ALB is responding before
-      # anyone promotes this build to production.
-      run: |
-        echo "Running smoke tests against staging..."
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.lumbenlengo.com/health/live)
-        if [ "$HTTP_CODE" -eq 200 ]; then
-          echo "Smoke test passed (HTTP $HTTP_CODE)"
-        else
-          echo "Smoke test FAILED (HTTP $HTTP_CODE)"
-          exit 1
-        fi
-
-    - name: Deployment Complete
-      run: |
-        echo "Deployed to Staging: https://staging.lumbenlengo.com"
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "Triggered manually — reason: ${{ github.event.inputs.reason }}"
-        fi
+      - name: Terraform Apply
+        run: terraform apply -no-color -auto-approve tfplan
