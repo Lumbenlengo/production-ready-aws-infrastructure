@@ -44,7 +44,6 @@ resource "aws_lb" "main" {
   security_groups    = [aws_security_group.alb_sg.id]
   subnets            = var.public_subnet_ids
 
-  # Controlled per environment via variable — always true in prod
   enable_deletion_protection = var.enable_deletion_protection
 
   tags = {
@@ -77,7 +76,7 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# HTTP Listener — redirect to HTTPS
+# HTTP Listener — redirect all traffic to HTTPS
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -94,13 +93,16 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# HTTPS Listener — modern TLS policy (TLS 1.2+ only, TLS 1.3 preferred)
+# HTTPS Listener — TLS 1.2+ only, TLS 1.3 preferred
+# References the certificate ARN directly — validation is handled
+# manually in Squarespace DNS (not Route53) and the certificate
+# is already in ISSUED state.
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = aws_acm_certificate_validation.cert.certificate_arn
+  certificate_arn   = aws_acm_certificate.cert.arn
 
   default_action {
     type             = "forward"
@@ -109,6 +111,9 @@ resource "aws_lb_listener" "https" {
 }
 
 # ACM Certificate
+# DNS validation record is managed manually in Squarespace.
+# The CNAME _48303337b71c3bb853d7da8cecabe117.api was added to
+# Squarespace DNS and the certificate is already ISSUED.
 resource "aws_acm_certificate" "cert" {
   domain_name       = var.domain_name
   validation_method = "DNS"
@@ -123,31 +128,11 @@ resource "aws_acm_certificate" "cert" {
   }
 }
 
-# Route 53 DNS validation records
-resource "aws_route53_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
-  ttl             = 60
-  type            = each.value.type
-  zone_id         = var.hosted_zone_id
-}
-
-# Wait for certificate validation
-resource "aws_acm_certificate_validation" "cert" {
-  certificate_arn         = aws_acm_certificate.cert.arn
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
-}
-
-# Route 53 A record — ALB alias
+# Route53 A record — ALB alias
+# Note: Route53 is not the authoritative DNS for patriciolumbe.com.
+# The api.patriciolumbe.com CNAME pointing to the ALB is managed
+# in Squarespace DNS. This record is kept for future use if the
+# domain is ever migrated to Route53.
 resource "aws_route53_record" "alb" {
   zone_id = var.hosted_zone_id
   name    = var.domain_name

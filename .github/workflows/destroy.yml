@@ -1,8 +1,9 @@
-name: Deploy — Development
+name: Deploy — Production
 
 on:
   push:
-    branches: [develop]
+    tags:
+      - 'v*.*.*'
 
 permissions:
   id-token: write
@@ -10,9 +11,9 @@ permissions:
 
 jobs:
   deploy:
-    name: Terraform Apply — Dev
+    name: Terraform Apply Production
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
 
     env:
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
@@ -35,7 +36,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        run: terraform init -backend-config="key=dev/terraform.tfstate"
+        run: terraform init -backend-config="key=prod/terraform.tfstate"
 
       - name: Terraform Validate
         run: terraform validate
@@ -45,7 +46,7 @@ jobs:
           terraform plan \
             -no-color \
             -out=tfplan \
-            -var-file="environments/dev/terraform.tfvars"
+            -var-file="environments/prod/terraform.tfvars"
 
       - name: Terraform Apply
         run: terraform apply -no-color -auto-approve tfplan

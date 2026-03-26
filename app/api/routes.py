@@ -9,8 +9,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from app.services.aws_service import get_instance_metadata, get_table, HealthCheck
-from app.core.monitoring import (
+from services.aws_service import get_instance_metadata, get_table, HealthCheck
+from core.monitoring import (
     limiter,
     http_requests_total,
     request_latency_seconds,

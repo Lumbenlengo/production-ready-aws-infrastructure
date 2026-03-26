@@ -34,3 +34,8 @@ output "nat_gateway_ids" {
   description = "NAT Gateway IDs"
   value       = aws_nat_gateway.main[*].id
 }
+
+output "name_servers" {
+  value       = aws_route53_zone.main.name_servers
+  description = "The 4 Name Servers of AWS for adding to your registrar DNS settings"
+}

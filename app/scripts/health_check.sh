@@ -16,4 +16,4 @@ if [ $HTTP_CODE -eq 200 ]; then
 else
     echo "Health check failed! HTTP Code: $HTTP_CODE"
     exit 1
-fi
+fi 

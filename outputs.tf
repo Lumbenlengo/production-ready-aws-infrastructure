@@ -42,3 +42,7 @@ output "kms_key_arn" {
   description = "KMS key ARN"
   value       = module.secrets.kms_key_arn
 }
+
+output "subdomain_ns" {
+  value = module.networking.name_servers
+}

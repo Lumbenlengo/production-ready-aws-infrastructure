@@ -1,14 +1,14 @@
 # environments/prod/terraform.tfvars
 
 project_name     = "lumbenlengo-prod"
-environment      = "prod"
-domain_name      = "app.lumbenlengo.com"
+environment      = "production"
+domain_name      = "api.patriciolumbe.com"
 instance_type    = "t3.medium"
 desired_capacity = 4
 max_size         = 8
 min_size         = 3
 vpc_cidr         = "10.2.0.0/16"
-alert_email      = "admin@lumbenlengo.com"
+alert_email      = "patriciolumbee@gmail.com"
 
 # GitHub
 github_owner     = "Lumbenlengo"

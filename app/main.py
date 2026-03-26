@@ -1,7 +1,8 @@
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from app.api.routes import router
-from app.core.monitoring import setup_monitoring, lifespan
+from api.routes import router
+from core.monitoring import setup_monitoring, lifespan
 
 app = FastAPI(
     title="Lumbenlengo High Availability Dashboard",
@@ -14,4 +15,4 @@ setup_monitoring(app)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-app.include_router(router)
+app.include_router(router) 
