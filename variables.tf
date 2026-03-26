@@ -6,17 +6,16 @@ variable "project_name" {
   type        = string
 }
 
+
 variable "environment" {
   description = "Deployment environment (dev/staging/prod)"
   type        = string
 
   validation {
-    # The 'var.environment == ""' allows the 'init' phase to skip the check
-    condition     = var.environment == "" || contains(["dev", "development", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, development, staging, or prod."
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
   }
 }
-
 # ==========================================
 # Networking
 # ==========================================
@@ -100,8 +99,7 @@ variable "db_password" {
   sensitive   = true
 
   validation {
-    # Crucial: allows empty string during 'init' but enforces length during 'plan'
-    condition     = var.db_password == "" || length(var.db_password) >= 16
+    condition     = length(var.db_password) >= 16
     error_message = "The db_password must be at least 16 characters long."
   }
 }
