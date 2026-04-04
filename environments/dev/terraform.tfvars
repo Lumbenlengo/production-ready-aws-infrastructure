@@ -8,7 +8,7 @@ desired_capacity = 1
 max_size         = 2
 min_size         = 1
 vpc_cidr         = "10.0.0.0/16"
-alert_email      = "admin@lumbenlengo.com"
+alert_email      = "patricio@patriciolumbe.com"
 
 # GitHub
 github_owner     = "Lumbenlengo"
