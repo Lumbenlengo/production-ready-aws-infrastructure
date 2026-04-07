@@ -1,0 +1,346 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project }} | High Availability Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- ===== IMPROVEMENT #4: Chart.js for real graphs ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo-section">
+                <h1>{{ project }}</h1>
+                <span class="environment-badge">{{ environment }}</span>
+            </div>
+            <div class="status-badge {{ status.lower() }}">
+                <i class="fas fa-check-circle"></i> {{ status }}
+            </div>
+        </header>
+
+        <!-- Server Info Card -->
+        <div class="server-card">
+            <div class="card-header">
+                <i class="fas fa-server"></i>
+                <h2>Current Server</h2>
+            </div>
+            <div class="server-info">
+                <div class="info-row">
+                    <span class="label">Hostname:</span>
+                    <span class="value">{{ hostname }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Availability Zone:</span>
+                    <span class="value az-badge">{{ az }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Region:</span>
+                    <span class="value">{{ region }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Instance ID:</span>
+                    <span class="value">{{ instance_id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Version:</span>
+                    <span class="value">{{ version }}</span>
+                </div>
+                <!-- ===== IMPROVEMENT #5: Live timestamp ===== -->
+                <div class="info-row">
+                    <span class="label">Live Time:</span>
+                    <span class="value live-timestamp" id="live-timestamp"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card" title="Items stored in DynamoDB">
+                <i class="fas fa-database"></i>
+                <div class="stat-content">
+                    <span class="stat-label">Items in DB</span>
+                    <span class="stat-value">{{ item_count }}</span>
+                </div>
+            </div>
+            <div class="stat-card" title="Last data refresh">
+                <i class="fas fa-clock"></i>
+                <div class="stat-content">
+                    <span class="stat-label">Last Updated</span>
+                    <span class="stat-value">{{ timestamp }}</span>
+                </div>
+            </div>
+            <div class="stat-card" title="Server uptime in seconds">
+                <i class="fas fa-heartbeat"></i>
+                <div class="stat-content">
+                    <span class="stat-label">Uptime</span>
+                    <span class="stat-value" id="uptime-value">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== IMPROVEMENT #4: Real charts section ===== -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3><i class="fas fa-microchip"></i> CPU Usage (Real-time)</h3>
+                <canvas id="cpu-chart" class="chart-canvas"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-memory"></i> Memory Usage</h3>
+                <canvas id="memory-chart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Services Status with tooltips -->
+        <div class="services-section">
+            <h3><i class="fas fa-cogs"></i> AWS Services Status</h3>
+            <div class="services-grid">
+                {% for service in services %}
+                <div class="service-card" data-tooltip="Click for details about {{ service.name }}">
+                    <div class="service-name">{{ service.name }}</div>
+                    <div class="service-status {{ service.status }}">
+                        <i class="fas fa-circle"></i> {{ service.status }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Action Buttons with tooltips -->
+        <div class="actions-section">
+            <h3><i class="fas fa-flask"></i> Test High Availability</h3>
+            <div class="button-group">
+                <button onclick="refreshPage()" class="btn btn-primary" title="Refresh to see a different AZ (load balancer will route to another server)">
+                    <i class="fas fa-sync-alt"></i> Refresh (Check AZ)
+                </button>
+                <button onclick="testItems()" class="btn btn-secondary" title="Fetch all items from DynamoDB">
+                    <i class="fas fa-list"></i> Test Items API
+                </button>
+                <button onclick="testMetrics()" class="btn btn-secondary" title="View real-time metrics">
+                    <i class="fas fa-chart-line"></i> View Metrics
+                </button>
+            </div>
+            <div id="api-result" class="api-result">
+                <!-- API results appear here -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 Patricio Lumbenlengo - AWS Production-Ready Infrastructure</p>
+            <p class="small">Deployed via Terraform | Auto Scaling Group | Multi-AZ | OpenTelemetry | Prometheus</p>
+        </footer>
+    </div>
+
+    <script>
+        // ===== IMPROVEMENT #5: Real-time timestamp update =====
+        function updateTimestamp() {
+            const now = new Date();
+            const utcString = now.toUTCString();
+            document.getElementById('live-timestamp').textContent = utcString;
+        }
+        setInterval(updateTimestamp, 1000);
+        updateTimestamp(); // Initial call
+
+        // ===== IMPROVEMENT #4: Real charts with Chart.js =====
+        let cpuChart, memoryChart;
+        let cpuData = [];
+        let memoryData = [];
+        let timestamps = [];
+
+        function initCharts() {
+            const cpuCtx = document.getElementById('cpu-chart').getContext('2d');
+            const memoryCtx = document.getElementById('memory-chart').getContext('2d');
+            
+            // Generate initial data
+            for (let i = 0; i < 20; i++) {
+                timestamps.push(new Date().toLocaleTimeString());
+                cpuData.push(Math.floor(Math.random() * 30) + 10);
+                memoryData.push(Math.floor(Math.random() * 30) + 20);
+            }
+            
+            cpuChart = new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        data: cpuData,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 500
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+            
+            memoryChart = new Chart(memoryCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Memory Usage (%)',
+                        data: memoryData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 500
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update charts with real data
+        async function updateCharts() {
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+                
+                // Update CPU chart
+                cpuData.push(data.cpu_usage);
+                if (cpuData.length > 20) cpuData.shift();
+                
+                // Update memory chart
+                memoryData.push(data.memory_usage);
+                if (memoryData.length > 20) memoryData.shift();
+                
+                // Update timestamps
+                timestamps.push(new Date().toLocaleTimeString());
+                if (timestamps.length > 20) timestamps.shift();
+                
+                // Update chart data
+                cpuChart.data.labels = timestamps;
+                cpuChart.data.datasets[0].data = cpuData;
+                cpuChart.update();
+                
+                memoryChart.data.labels = timestamps;
+                memoryChart.data.datasets[0].data = memoryData;
+                memoryChart.update();
+                
+                // Update uptime
+                if (data.uptime) {
+                    const uptimeSeconds = Math.floor(data.uptime);
+                    const hours = Math.floor(uptimeSeconds / 3600);
+                    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+                    const seconds = uptimeSeconds % 60;
+                    document.getElementById('uptime-value').textContent = 
+                        `${hours}h ${minutes}m ${seconds}s`;
+                }
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+
+        function refreshPage() {
+            window.location.reload();
+        }
+
+        async function testItems() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            
+            try {
+                const response = await fetch('/api/items');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="result-success">
+                        <h4>Items API Response <i class="fas fa-check-circle"></i></h4>
+                        <p><strong>Server:</strong> ${data.server}</p>
+                        <p><strong>Total Items:</strong> ${data.count}</p>
+                        <pre>${JSON.stringify(data.items, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result-error">
+                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testMetrics() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="result-success">
+                        <h4>Metrics <i class="fas fa-chart-line"></i></h4>
+                        <p><strong>Server:</strong> ${data.server}</p>
+                        <p><strong>AZ:</strong> ${data.az}</p>
+                        <div class="metrics-grid">
+                            <div class="metric">
+                                <span class="metric-label">CPU Usage</span>
+                                <span class="metric-value">${data.cpu_usage}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Memory Usage</span>
+                                <span class="metric-value">${data.memory_usage}%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Requests/min</span>
+                                <span class="metric-value">${data.requests_per_minute}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Items</span>
+                                <span class="metric-value">${data.items_count}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result-error">
+                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize charts when page loads
+        window.onload = function() {
+            initCharts();
+            // Update charts every 5 seconds
+            setInterval(updateCharts, 5000);
+        };
+
+        // Auto-refresh metrics every 30 seconds
+        setInterval(testMetrics, 30000);
+    </script>
+</body>
+</html>

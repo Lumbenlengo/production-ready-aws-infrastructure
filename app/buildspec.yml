@@ -1,0 +1,55 @@
+# app/buildspec.yml
+# CodeBuild build specification
+# Runs: test → Docker build → ECR push → generate CodeDeploy artifacts
+
+version: 0.2
+
+env:
+  variables:
+    DOCKER_BUILDKIT: "1"
+
+phases:
+  pre_build:
+    commands:
+      - echo "=== Pre-build: authenticate to ECR ==="
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION
+          | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - echo "Building image tag $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "=== Build: run tests ==="
+      - pip install -r app/requirements.txt pytest httpx
+      # ✅ CORRIGIDO: Falha se testes falharem (não ignora)
+      - pytest app/tests/ -v --tb=short || exit 1
+
+      - echo "=== Build: Docker build ==="
+      - docker build
+          --build-arg BUILDKIT_INLINE_CACHE=1
+          -t $REPOSITORY_URI:$IMAGE_TAG
+          -t $REPOSITORY_URI:latest
+          -f app/Dockerfile
+          app/
+
+  post_build:
+    commands:
+      - echo "=== Post-build: push to ECR ==="
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - docker push $REPOSITORY_URI:latest
+
+      - echo "=== Post-build: generate CodeDeploy artifacts ==="
+      - printf '[{"name":"app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG"
+          > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - app/appspec.yml
+    - app/scripts/**/*
+  discard-paths: no
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'

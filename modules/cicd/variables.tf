@@ -1,0 +1,10 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "github_owner" { type = string }
+variable "github_repo_name" { type = string }
+variable "artifact_bucket_arn" { type = string }
+variable "artifact_bucket_id" { type = string }
+variable "asg_name" { type = string }
+variable "target_group_name" { type = string }
+variable "sns_topic_arn" { type = string }
+variable "rollback_alarm_names" { type = list(string) }
