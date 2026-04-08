@@ -141,62 +141,119 @@ resource "aws_cloudwatch_dashboard" "main" {
     widgets = [
       {
         type   = "metric"
+        x      = 0
+        y      = 0
         width  = 12
         height = 6
         properties = {
-          title  = "CPU Utilization"
-          view   = "timeSeries"
-          period = 300
+          title   = "CPU Utilization"
+          view    = "timeSeries"
+          stacked = false
+          region  = "us-east-1"
+          period  = 300
+          stat    = "Maximum"
           metrics = [
             ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.asg_name]
           ]
-        }
-      },
-      {
-        type   = "metric"
-        width  = 12
-        height = 6
-        properties = {
-          title  = "ALB Response Time p95 (SLO: < 300ms)"
-          view   = "timeSeries"
-          period = 300
-          metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix,
-            "TargetGroup", var.target_group_arn_suffix, { stat = "p95" }]
-          ]
           annotations = {
-            horizontal = [{ value = 0.3, label = "SLO threshold", color = "#ff0000" }]
+            horizontal = [
+              {
+                value = 80
+                label = "Alarm threshold"
+                color = "#ff0000"
+              }
+            ]
           }
         }
       },
       {
         type   = "metric"
+        x      = 12
+        y      = 0
         width  = 12
         height = 6
         properties = {
-          title  = "5XX Error Rate (SLO: < 0.1%)"
-          view   = "timeSeries"
-          period = 300
+          title   = "ALB Response Time p95 (SLO: < 300ms)"
+          view    = "timeSeries"
+          stacked = false
+          region  = "us-east-1"
+          period  = 300
+          stat    = "p95"
           metrics = [
-            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count",
-            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
+            ["AWS/ApplicationELB", "TargetResponseTime",
+              "LoadBalancer", var.alb_arn_suffix,
+            "TargetGroup", var.target_group_arn_suffix]
           ]
+          annotations = {
+            horizontal = [
+              {
+                value = 0.3
+                label = "SLO threshold 300ms"
+                color = "#ff0000"
+              }
+            ]
+          }
         }
       },
       {
         type   = "metric"
+        x      = 0
+        y      = 6
         width  = 12
         height = 6
         properties = {
-          title  = "Healthy / Unhealthy Host Count"
-          view   = "timeSeries"
-          period = 60
+          title   = "5XX Error Rate (SLO: < 0.1%)"
+          view    = "timeSeries"
+          stacked = false
+          region  = "us-east-1"
+          period  = 300
+          stat    = "Sum"
+          metrics = [
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count",
+              "LoadBalancer", var.alb_arn_suffix,
+            "TargetGroup", var.target_group_arn_suffix]
+          ]
+          annotations = {
+            horizontal = [
+              {
+                value = 10
+                label = "Alert threshold"
+                color = "#ff6600"
+              }
+            ]
+          }
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title   = "Healthy / Unhealthy Host Count"
+          view    = "timeSeries"
+          stacked = false
+          region  = "us-east-1"
+          period  = 60
+          stat    = "Maximum"
           metrics = [
             ["AWS/ApplicationELB", "HealthyHostCount",
-            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix],
+              "LoadBalancer", var.alb_arn_suffix,
+            "TargetGroup", var.target_group_arn_suffix],
             ["AWS/ApplicationELB", "UnHealthyHostCount",
-            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
+              "LoadBalancer", var.alb_arn_suffix,
+            "TargetGroup", var.target_group_arn_suffix]
           ]
+          annotations = {
+            horizontal = [
+              {
+                value = 1
+                label = "Unhealthy threshold"
+                color = "#ff0000"
+              }
+            ]
+          }
         }
       }
     ]
