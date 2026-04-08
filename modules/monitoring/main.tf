@@ -162,7 +162,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           period = 300
           metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix,
-              "TargetGroup", var.target_group_arn_suffix, { stat = "p95" }]
+            "TargetGroup", var.target_group_arn_suffix, { stat = "p95" }]
           ]
           annotations = {
             horizontal = [{ value = 0.3, label = "SLO threshold", color = "#ff0000" }]
@@ -179,7 +179,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           period = 300
           metrics = [
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count",
-              "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
+            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
           ]
         }
       },
@@ -193,9 +193,9 @@ resource "aws_cloudwatch_dashboard" "main" {
           period = 60
           metrics = [
             ["AWS/ApplicationELB", "HealthyHostCount",
-              "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix],
+            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix],
             ["AWS/ApplicationELB", "UnHealthyHostCount",
-              "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
+            "LoadBalancer", var.alb_arn_suffix, "TargetGroup", var.target_group_arn_suffix]
           ]
         }
       }
@@ -334,12 +334,12 @@ resource "aws_lambda_function" "slo_checker" {
 
   environment {
     variables = {
-      PROJECT_NAME      = var.project_name
-      ENVIRONMENT       = var.environment
-      ALB_ARN_SUFFIX    = var.alb_arn_suffix
-      TG_ARN_SUFFIX     = var.target_group_arn_suffix
-      SSM_GATE_PARAM    = "/${var.project_name}/${var.environment}/slo/deployment-gate"
-      ERROR_BUDGET_PCT  = "0.001"
+      PROJECT_NAME     = var.project_name
+      ENVIRONMENT      = var.environment
+      ALB_ARN_SUFFIX   = var.alb_arn_suffix
+      TG_ARN_SUFFIX    = var.target_group_arn_suffix
+      SSM_GATE_PARAM   = "/${var.project_name}/${var.environment}/slo/deployment-gate"
+      ERROR_BUDGET_PCT = "0.001"
     }
   }
 
@@ -428,7 +428,7 @@ resource "aws_lambda_permission" "slo_eventbridge" {
 resource "aws_cloudwatch_event_target" "guardduty_sns" {
   rule      = aws_cloudwatch_event_rule.guardduty_high.name
   target_id = "GuardDutySNS"
-  arn       = aws_sns_topic.alerts.arn   # ← USA O RECURSO LOCAL
+  arn       = aws_sns_topic.alerts.arn # ← USA O RECURSO LOCAL
 }
 
 

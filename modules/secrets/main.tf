@@ -54,8 +54,8 @@ resource "aws_ssm_parameter" "api_key" {
 # ── SSM Parameter Store — App config ─────────────────────────────────
 
 resource "aws_ssm_parameter" "app_config" {
-  name  = "/${var.project_name}/${var.environment}/app/config"
-  type  = "String"
+  name = "/${var.project_name}/${var.environment}/app/config"
+  type = "String"
   value = jsonencode({
     environment  = var.environment
     project_name = var.project_name

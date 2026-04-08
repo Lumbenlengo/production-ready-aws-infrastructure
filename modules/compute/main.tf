@@ -96,12 +96,12 @@ resource "aws_launch_template" "main" {
   monitoring {
     enabled = true
   }
-user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
-  
-  aws_region         = "us-east-1"
-  project_name       = var.project_name
-  environment        = var.environment
-}))
+  user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
+
+    aws_region   = "us-east-1"
+    project_name = var.project_name
+    environment  = var.environment
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -120,12 +120,12 @@ data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
 
-  
+
 
   filter {
-  name   = "name"
-  values = ["al2023-ami-2023.*-x86_64"] 
-}
+    name   = "name"
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
 
   filter {
     name   = "virtualization-type"
@@ -146,8 +146,8 @@ resource "aws_autoscaling_group" "main" {
   desired_capacity = var.desired_capacity
 
   # Wait for health checks before marking deploy complete
- health_check_grace_period = 600  
-  
+  health_check_grace_period = 600
+
   wait_for_capacity_timeout = "20m"
 
   launch_template {

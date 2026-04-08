@@ -15,7 +15,7 @@ variable "target_group_arn" { type = string }
 
 variable "kms_key_arn" {
   type    = string
-  default = "arn:aws:kms:*:*:key/*"  
+  default = "arn:aws:kms:*:*:key/*"
 }
 
 

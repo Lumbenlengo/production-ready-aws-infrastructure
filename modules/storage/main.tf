@@ -46,7 +46,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
     status = "Enabled"
 
     filter {
-      prefix = ""  # ← Adicionar isto (ou filter vazio para todos)
+      prefix = "" # ← Adicionar isto (ou filter vazio para todos)
     }
 
     expiration {
