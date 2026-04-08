@@ -134,6 +134,8 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
 
 # ── CloudWatch Dashboard ──────────────────────────────────────────────
 
+# modules/monitoring/main.tf
+
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "${var.project_name}-${var.environment}"
 
@@ -141,102 +143,61 @@ resource "aws_cloudwatch_dashboard" "main" {
     widgets = [
       {
         type   = "metric"
-        x      = 0
-        y      = 0
         width  = 12
         height = 6
         properties = {
-          title   = "CPU Utilization"
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          period  = 300
-          stat    = "Maximum"
+          title  = "CPU Utilization"
+          view   = "timeSeries"
+          period = 300
           metrics = [
             ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.asg_name]
           ]
-          annotations = {
-            horizontal = [
-              {
-                value = 80
-                label = "Alarm threshold"
-                color = "#ff0000"
-              }
-            ]
-          }
+          stat   = "Average"
+          region = "us-east-1"
         }
       },
       {
         type   = "metric"
-        x      = 12
-        y      = 0
         width  = 12
         height = 6
         properties = {
-          title   = "ALB Response Time p95 (SLO: < 300ms)"
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          period  = 300
-          stat    = "p95"
+          title  = "ALB Response Time (p95)"
+          view   = "timeSeries"
+          period = 300
           metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime",
               "LoadBalancer", var.alb_arn_suffix,
-            "TargetGroup", var.target_group_arn_suffix]
+              "TargetGroup", var.target_group_arn_suffix,
+            { "stat" = "p95" }]
           ]
-          annotations = {
-            horizontal = [
-              {
-                value = 0.3
-                label = "SLO threshold 300ms"
-                color = "#ff0000"
-              }
-            ]
-          }
+          region = "us-east-1"
         }
       },
       {
         type   = "metric"
-        x      = 0
-        y      = 6
         width  = 12
         height = 6
         properties = {
-          title   = "5XX Error Rate (SLO: < 0.1%)"
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          period  = 300
-          stat    = "Sum"
+          title  = "5XX Errors"
+          view   = "timeSeries"
+          period = 300
           metrics = [
             ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count",
               "LoadBalancer", var.alb_arn_suffix,
             "TargetGroup", var.target_group_arn_suffix]
           ]
-          annotations = {
-            horizontal = [
-              {
-                value = 10
-                label = "Alert threshold"
-                color = "#ff6600"
-              }
-            ]
-          }
+          stat   = "Sum"
+          region = "us-east-1"
         }
       },
       {
         type   = "metric"
-        x      = 12
-        y      = 6
         width  = 12
         height = 6
         properties = {
-          title   = "Healthy / Unhealthy Host Count"
-          view    = "timeSeries"
-          stacked = false
-          region  = "us-east-1"
-          period  = 60
-          stat    = "Maximum"
+          title  = "Healthy vs Unhealthy Hosts"
+          view   = "timeSeries"
+          period = 60
           metrics = [
             ["AWS/ApplicationELB", "HealthyHostCount",
               "LoadBalancer", var.alb_arn_suffix,
@@ -245,21 +206,12 @@ resource "aws_cloudwatch_dashboard" "main" {
               "LoadBalancer", var.alb_arn_suffix,
             "TargetGroup", var.target_group_arn_suffix]
           ]
-          annotations = {
-            horizontal = [
-              {
-                value = 1
-                label = "Unhealthy threshold"
-                color = "#ff0000"
-              }
-            ]
-          }
+          region = "us-east-1"
         }
       }
     ]
   })
 }
-
 # ── CloudTrail ────────────────────────────────────────────────────────
 
 resource "aws_s3_bucket" "cloudtrail" {
