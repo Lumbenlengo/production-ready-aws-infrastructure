@@ -7,7 +7,7 @@ yum install -y docker ruby wget
 
 systemctl enable docker
 systemctl start docker
-usermod -aG docker ec2-user
+usermod -aG docker ec2-user 
 
 # Install CodeDeploy agent
 cd /tmp

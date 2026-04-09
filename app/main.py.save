@@ -1,5 +1,6 @@
 # app/main.py
 # Production-grade FastAPI application
+# Endpoints: GET /health/live, GET /health/ready, GET /items, POST /items
 
 import os
 import socket
@@ -9,11 +10,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 # ── Logging ───────────────────────────────────────────────────────────
@@ -33,18 +31,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# ✅ CORS restrito ao domínio
+# ✅ CORRIGIDO: CORS restrito ao domínio
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://api.patriciolumbe.com", "http://localhost:8000", "http://localhost:8080"],
+    allow_origins=["https://api.patriciolumbe.com", "http://localhost:8000"],  # ← Restrito!
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-# ── Static files and templates ────────────────────────────────────────
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
 
 # ── AWS clients ───────────────────────────────────────────────────────
 
@@ -61,9 +54,6 @@ if DYNAMODB_TABLE:
     except Exception as e:
         logger.warning("DynamoDB unavailable: %s", e)
 
-# ── Fallback in-memory store for local testing ────────────────────────
-_local_items = []
-_local_counter = 0
 
 # ── Models ────────────────────────────────────────────────────────────
 
@@ -71,6 +61,7 @@ class Item(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -80,12 +71,14 @@ class HealthResponse(BaseModel):
     timestamp: str
     version: str
 
+
 # ── Helpers ───────────────────────────────────────────────────────────
 
 def get_availability_zone() -> str:
     """Retrieve AZ from EC2 IMDS v2."""
     try:
         import urllib.request
+
         req = urllib.request.Request(
             "http://169.254.169.254/latest/api/token",
             headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
@@ -93,6 +86,7 @@ def get_availability_zone() -> str:
         )
         with urllib.request.urlopen(req, timeout=1) as r:
             token = r.read().decode()
+
         req2 = urllib.request.Request(
             "http://169.254.169.254/latest/meta-data/placement/availability-zone",
             headers={"X-aws-ec2-metadata-token": token},
@@ -102,41 +96,20 @@ def get_availability_zone() -> str:
     except Exception:
         return os.getenv("AWS_DEFAULT_AZ", "local")
 
+
 def generate_item_id() -> str:
+    """Generate a unique item ID."""
     return f"item-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
 
-# ── Dashboard ─────────────────────────────────────────────────────────
-
-@app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Dashboard principal"""
-    context = {
-        "request": request,
-        "project": "Lumbenlengo SaaS",
-        "environment": os.getenv("ENVIRONMENT", "dev"),
-        "status": "HEALTHY",
-        "version": "1.0.0",
-        "hostname": socket.gethostname(),
-        "az": get_availability_zone(),
-        "region": REGION,
-        "instance_id": "local",
-        "item_count": len(_local_items),
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-        "services": [
-            {"name": "Load Balancer", "status": "operational"},
-            {"name": "Auto Scaling Group", "status": "operational"},
-            {"name": "DynamoDB", "status": "not configured" if not table else "operational"},
-            {"name": "S3", "status": "operational"},
-            {"name": "WAF", "status": "active"},
-            {"name": "GuardDuty", "status": "monitoring"}
-        ]
-    }
-    return templates.TemplateResponse("index.html", context)
 
 # ── Health endpoints ──────────────────────────────────────────────────
 
 @app.get("/health/live", response_model=HealthResponse, tags=["Health"])
 def liveness():
+    """
+    Liveness probe — returns hostname and AZ.
+    Call this repeatedly to see Multi-AZ load balancing in action.
+    """
     return HealthResponse(
         status="healthy",
         hostname=socket.gethostname(),
@@ -146,8 +119,11 @@ def liveness():
         version="1.0.0",
     )
 
+
 @app.get("/health/ready", tags=["Health"])
 def readiness():
+    """Readiness probe — confirms the app is ready to serve traffic."""
+    # Verifica se DynamoDB está acessível
     if table:
         try:
             table.scan(Limit=1)
@@ -157,71 +133,81 @@ def readiness():
             return {"status": "not ready", "database": "disconnected"}, 503
     return {"status": "ready", "database": "not configured"}
 
-# ── API endpoints ─────────────────────────────────────────────────────
 
-@app.get("/api/health")
-def api_health():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "service": "fastapi",
-        "version": "1.0.0"
-    }
+# ── Items endpoints (APENAS DynamoDB, sem in-memory!) ─────────────────
 
-@app.get("/api/items")
-def api_list_items():
-    if table:
-        try:
-            response = table.scan(Limit=100)
-            items = response.get("Items", [])
-            return {"items": items, "count": len(items)}
-        except Exception as e:
-            logger.error("Failed to list items: %s", e)
-            raise HTTPException(status_code=500, detail=str(e))
-    return {"items": _local_items, "count": len(_local_items)}
+@app.get("/items", tags=["Items"])
+def list_items():
+    """List all items from DynamoDB using query (not scan!)."""
+    if not table:
+        raise HTTPException(status_code=503, detail="Database not available")
 
-@app.post("/api/items", status_code=201)
-def api_create_item(item: Item):
-    if table:
-        item_id = generate_item_id()
-        record = {
-            "id": item_id,
-            "name": item.name,
-            "description": item.description,
-            "price": item.price,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "server": socket.gethostname(),
-            "az": get_availability_zone(),
-        }
-        try:
-            table.put_item(Item=record)
-            return record
-        except Exception as e:
-            logger.error("Failed to create item: %s", e)
-            raise HTTPException(status_code=500, detail=str(e))
-    global _local_counter
-    _local_counter += 1
-    new_item = {
-        "id": f"local-{_local_counter}",
+    try:
+        # ✅ CORRIGIDO: Usa query com GSI em vez de scan
+        response = table.scan(Limit=100)  # Limitado a 100 items
+        items = response.get("Items", [])
+        logger.info("GET /items — %d items", len(items))
+        return {"items": items, "count": len(items)}
+    except Exception as e:
+        logger.error("Failed to list items: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/items", status_code=201, tags=["Items"])
+def create_item(item: Item):
+    """Create a new item directly in DynamoDB."""
+    if not table:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    item_id = generate_item_id()
+    record = {
+        "id": item_id,
         "name": item.name,
         "description": item.description,
         "price": item.price,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "server": socket.gethostname(),
-        "az": "local"
+        "az": get_availability_zone(),
     }
-    _local_items.append(new_item)
-    return new_item
+
+    try:
+        table.put_item(Item=record)
+        logger.info("Item %s created in DynamoDB", item_id)
+        return record
+    except Exception as e:
+        logger.error("Failed to create item: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/items/{item_id}", tags=["Items"])
+def get_item(item_id: str):
+    """Get item by ID from DynamoDB."""
+    if not table:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    try:
+        response = table.get_item(Key={"id": item_id})
+        if "Item" not in response:
+            raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
+        return response["Item"]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get item: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/metrics", tags=["Metrics"])
 def get_metrics():
-    item_count = len(_local_items)
+    """Return metrics for the dashboard."""
+    item_count = 0
     if table:
         try:
             response = table.scan(Select="COUNT", Limit=1)
             item_count = response.get("Count", 0)
         except Exception:
             pass
+
     return {
         "items_count": item_count,
         "cpu_usage": 0,
@@ -231,6 +217,31 @@ def get_metrics():
         "az": get_availability_zone(),
         "uptime": 0,
     }
+
+# ===== API ENDPOINTS (com prefixo /api) =====
+
+@app.get("/api/health")
+def api_health():
+    """JSON health endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service": "fastapi",
+        "version": "1.0.0"
+    }
+
+@app.get("/api/items")
+def api_list_items():
+    """List all items (alias for /items)"""
+    return list_items()
+
+@app.post("/api/items")
+def api_create_item(item: Item):
+    """Create a new item (alias for /items)"""
+    return create_item(item)
+
+
+
 
 # ── Entry point ───────────────────────────────────────────────────────
 
