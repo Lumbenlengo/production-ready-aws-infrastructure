@@ -17,10 +17,8 @@ resource "aws_kms_alias" "main" {
   target_key_id = aws_kms_key.main.key_id
 }
 
-# ── Secrets Manager — DB credentials ─────────────────────────────────
-
 resource "aws_secretsmanager_secret" "db" {
-  name                    = "${var.project_name}-db-secret-${var.environment}"
+  name                    = "${var.project_name}-db-secret-v2-${var.environment}"
   kms_key_id              = aws_kms_key.main.arn
   recovery_window_in_days = 7
 
