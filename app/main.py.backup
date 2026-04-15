@@ -1,0 +1,238 @@
+# app/main.py
+# Production-grade FastAPI application
+
+import os
+import socket
+import logging
+import boto3
+from datetime import datetime, timezone
+from typing import Optional
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+# ── Logging ───────────────────────────────────────────────────────────
+
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+logger = logging.getLogger("app")
+
+# ── App ───────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="Production-Ready AWS API",
+    description="Live at api.patriciolumbe.com — Multi-AZ EC2 ASG with Blue/Green CodeDeploy",
+    version="1.0.0",
+)
+
+# ✅ CORS restrito ao domínio
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://api.patriciolumbe.com", "http://localhost:8000", "http://localhost:8080"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# ── Static files and templates ────────────────────────────────────────
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# ── AWS clients ───────────────────────────────────────────────────────
+
+REGION = os.getenv("AWS_REGION", "us-east-1")
+DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", "")
+
+dynamodb = None
+table = None
+if DYNAMODB_TABLE:
+    try:
+        dynamodb = boto3.resource("dynamodb", region_name=REGION)
+        table = dynamodb.Table(DYNAMODB_TABLE)
+        logger.info("DynamoDB connected — table: %s", DYNAMODB_TABLE)
+    except Exception as e:
+        logger.warning("DynamoDB unavailable: %s", e)
+
+# ── Fallback in-memory store for local testing ────────────────────────
+_local_items = []
+_local_counter = 0
+
+# ── Models ────────────────────────────────────────────────────────────
+
+class Item(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+
+class HealthResponse(BaseModel):
+    status: str
+    hostname: str
+    availability_zone: str
+    environment: str
+    timestamp: str
+    version: str
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
+def get_availability_zone() -> str:
+    """Retrieve AZ from EC2 IMDS v2."""
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            "http://169.254.169.254/latest/api/token",
+            headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+            method="PUT",
+        )
+        with urllib.request.urlopen(req, timeout=1) as r:
+            token = r.read().decode()
+        req2 = urllib.request.Request(
+            "http://169.254.169.254/latest/meta-data/placement/availability-zone",
+            headers={"X-aws-ec2-metadata-token": token},
+        )
+        with urllib.request.urlopen(req2, timeout=1) as r:
+            return r.read().decode()
+    except Exception:
+        return os.getenv("AWS_DEFAULT_AZ", "local")
+
+def generate_item_id() -> str:
+    return f"item-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+
+# ── Dashboard ─────────────────────────────────────────────────────────
+
+@app.get("/", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Dashboard principal"""
+    context = {
+        "request": request,
+        "project": "Lumbenlengo SaaS",
+        "environment": os.getenv("ENVIRONMENT", "dev"),
+        "status": "HEALTHY",
+        "version": "1.0.0",
+        "hostname": socket.gethostname(),
+        "az": get_availability_zone(),
+        "region": REGION,
+        "instance_id": "local",
+        "item_count": len(_local_items),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "services": [
+            {"name": "Load Balancer", "status": "operational"},
+            {"name": "Auto Scaling Group", "status": "operational"},
+            {"name": "DynamoDB", "status": "not configured" if not table else "operational"},
+            {"name": "S3", "status": "operational"},
+            {"name": "WAF", "status": "active"},
+            {"name": "GuardDuty", "status": "monitoring"}
+        ]
+    }
+    return templates.TemplateResponse("index.html", context)
+
+# ── Health endpoints ──────────────────────────────────────────────────
+
+@app.get("/health/live", response_model=HealthResponse, tags=["Health"])
+def liveness():
+    return HealthResponse(
+        status="healthy",
+        hostname=socket.gethostname(),
+        availability_zone=get_availability_zone(),
+        environment=os.getenv("ENVIRONMENT", "unknown"),
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        version="1.0.0",
+    )
+
+@app.get("/health/ready", tags=["Health"])
+def readiness():
+    if table:
+        try:
+            table.scan(Limit=1)
+            return {"status": "ready", "database": "connected"}
+        except Exception as e:
+            logger.warning("Database not ready: %s", e)
+            return {"status": "not ready", "database": "disconnected"}, 503
+    return {"status": "ready", "database": "not configured"}
+
+# ── API endpoints ─────────────────────────────────────────────────────
+
+@app.get("/api/health")
+def api_health():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service": "fastapi",
+        "version": "1.0.0"
+    }
+
+@app.get("/api/items")
+def api_list_items():
+    if table:
+        try:
+            response = table.scan(Limit=100)
+            items = response.get("Items", [])
+            return {"items": items, "count": len(items)}
+        except Exception as e:
+            logger.error("Failed to list items: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"items": _local_items, "count": len(_local_items)}
+
+@app.post("/api/items", status_code=201)
+def api_create_item(item: Item):
+    if table:
+        item_id = generate_item_id()
+        record = {
+            "id": item_id,
+            "name": item.name,
+            "description": item.description,
+            "price": item.price,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "server": socket.gethostname(),
+            "az": get_availability_zone(),
+        }
+        try:
+            table.put_item(Item=record)
+            return record
+        except Exception as e:
+            logger.error("Failed to create item: %s", e)
+            raise HTTPException(status_code=500, detail=str(e))
+    global _local_counter
+    _local_counter += 1
+    new_item = {
+        "id": f"local-{_local_counter}",
+        "name": item.name,
+        "description": item.description,
+        "price": item.price,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "server": socket.gethostname(),
+        "az": "local"
+    }
+    _local_items.append(new_item)
+    return new_item
+
+@app.get("/api/metrics", tags=["Metrics"])
+def get_metrics():
+    item_count = len(_local_items)
+    if table:
+        try:
+            response = table.scan(Select="COUNT", Limit=1)
+            item_count = response.get("Count", 0)
+        except Exception:
+            pass
+    return {
+        "items_count": item_count,
+        "cpu_usage": 0,
+        "memory_usage": 0,
+        "requests_per_minute": 0,
+        "server": socket.gethostname(),
+        "az": get_availability_zone(),
+        "uptime": 0,
+    }
+
+# ── Entry point ───────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

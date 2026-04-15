@@ -15,10 +15,10 @@ github_owner     = "Lumbenlengo"
 github_repo_name = "production-ready-aws-infrastructure"
 github_repo_url  = "https://github.com/Lumbenlengo/production-ready-aws-infrastructure"
 
-# SSH disabled in dev — use SSM Session Manager instead
+# SSH disabled in dev use SSM Session Manager instead
 # my_ip = null  (default)
 
-# Enable ALB deletion protection only in prod
+# ALB deletion protection only in prod
 enable_deletion_protection = false
 
 # Set to true after first apply creates the ALB

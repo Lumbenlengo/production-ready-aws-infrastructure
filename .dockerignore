@@ -1,0 +1,27 @@
+# Ignore version control
+.git
+.gitignore
+
+# Ignore Terraform junk
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Ignore Python temporary files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Ignore Pipeline configuration files (not needed during execution)
+Dockerfile
+.dockerignore
+buildspec.yml
+appspec.yml
+
+# Ignore logs and drafts
+*.log
+tmp/

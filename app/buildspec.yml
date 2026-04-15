@@ -21,17 +21,16 @@ phases:
     commands:
       - echo "=== Build: run tests ==="
       - pip install -r app/requirements.txt pytest httpx
-      # ✅ CORRIGIDO: Falha se testes falharem (não ignora)
+     
       - pytest app/tests/ -v --tb=short || exit 1
 
       - echo "=== Build: Docker build ==="
-      - docker build
-          --build-arg BUILDKIT_INLINE_CACHE=1
-          -t $REPOSITORY_URI:$IMAGE_TAG
-          -t $REPOSITORY_URI:latest
-          -f app/Dockerfile
-          app/
-
+      - docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          -t $REPOSITORY_URI:$IMAGE_TAG \
+          -t $REPOSITORY_URI:latest \
+          -f Dockerfile .  
+          
   post_build:
     commands:
       - echo "=== Post-build: push to ECR ==="

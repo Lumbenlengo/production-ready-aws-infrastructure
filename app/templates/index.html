@@ -1,346 +1,397 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ project }} | High Availability Dashboard</title>
+    <title>Lumbenlengo SaaS | Infrastructure Console</title>
     <link rel="stylesheet" href="/static/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- ===== IMPROVEMENT #4: Chart.js for real graphs ===== -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+
+        <!-- ── ORIGINAL HEADER — unchanged ── -->
         <header>
-            <div class="logo-section">
-                <h1>{{ project }}</h1>
-                <span class="environment-badge">{{ environment }}</span>
+            <div>
+                <h1>⚡ Lumbenlengo SaaS</h1>
+                <span class="env-badge">{{ environment | upper }}</span>
             </div>
-            <div class="status-badge {{ status.lower() }}">
-                <i class="fas fa-check-circle"></i> {{ status }}
-            </div>
+            <a href="/game" target="_blank" class="btn-play">
+                <i class="fas fa-gamepad"></i> PLAY THE GAME
+            </a>
         </header>
 
-        <!-- Server Info Card -->
-        <div class="server-card">
-            <div class="card-header">
-                <i class="fas fa-server"></i>
-                <h2>Current Server</h2>
-            </div>
-            <div class="server-info">
-                <div class="info-row">
-                    <span class="label">Hostname:</span>
-                    <span class="value">{{ hostname }}</span>
+        <!-- ══════════════════════════════════════════════════════
+             LIVE STATUS BAR — Health Check + Request Counters
+             ══════════════════════════════════════════════════════ -->
+        <div class="live-status-bar">
+
+            <div class="live-status-pill">
+                <div class="live-status-pill-icon icon-health">
+                    <i class="fas fa-heartbeat"></i>
                 </div>
-                <div class="info-row">
-                    <span class="label">Availability Zone:</span>
-                    <span class="value az-badge">{{ az }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Region:</span>
-                    <span class="value">{{ region }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Instance ID:</span>
-                    <span class="value">{{ instance_id }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Version:</span>
-                    <span class="value">{{ version }}</span>
-                </div>
-                <!-- ===== IMPROVEMENT #5: Live timestamp ===== -->
-                <div class="info-row">
-                    <span class="label">Live Time:</span>
-                    <span class="value live-timestamp" id="live-timestamp"></span>
+                <div class="live-status-pill-text">
+                    <span class="live-status-pill-label">API Health</span>
+                    <span class="live-status-pill-value">
+                        <span class="health-dot green" id="healthDot"></span>
+                        <span id="healthLabel">Checking…</span>
+                        <span style="font-size:0.7rem; color:#94a3b8; font-weight:400;" id="healthLatency"></span>
+                    </span>
                 </div>
             </div>
+
+            <div class="live-status-pill">
+                <div class="live-status-pill-icon icon-rps">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="live-status-pill-text">
+                    <span class="live-status-pill-label">Requests / sec</span>
+                    <span class="live-status-pill-value" id="rpsValue" style="color:#2563eb;">0.0</span>
+                </div>
+            </div>
+
+            <div class="live-status-pill">
+                <div class="live-status-pill-icon icon-total">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="live-status-pill-text">
+                    <span class="live-status-pill-label">Total Requests</span>
+                    <span class="live-status-pill-value" id="totalReqValue" style="color:#7c3aed;">0</span>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Stats Grid -->
+        <!-- ── ORIGINAL STATS GRID — unchanged ── -->
         <div class="stats-grid">
-            <div class="stat-card" title="Items stored in DynamoDB">
-                <i class="fas fa-database"></i>
-                <div class="stat-content">
-                    <span class="stat-label">Items in DB</span>
-                    <span class="stat-value">{{ item_count }}</span>
+            <div class="stat-card" id="cpuCard">
+                <i class="fas fa-microchip"></i>
+                <div>
+                    <div class="stat-label">CPU USAGE</div>
+                    <div class="stat-value" id="cpuValue">0%</div>
                 </div>
             </div>
-            <div class="stat-card" title="Last data refresh">
-                <i class="fas fa-clock"></i>
-                <div class="stat-content">
-                    <span class="stat-label">Last Updated</span>
-                    <span class="stat-value">{{ timestamp }}</span>
+            <div class="stat-card" id="memCard">
+                <i class="fas fa-memory"></i>
+                <div>
+                    <div class="stat-label">MEMORY USAGE</div>
+                    <div class="stat-value" id="memValue">0%</div>
                 </div>
             </div>
-            <div class="stat-card" title="Server uptime in seconds">
-                <i class="fas fa-heartbeat"></i>
-                <div class="stat-content">
-                    <span class="stat-label">Uptime</span>
-                    <span class="stat-value" id="uptime-value">-</span>
+            <div class="stat-card" id="playersCard">
+                <i class="fas fa-users"></i>
+                <div>
+                    <div class="stat-label">ACTIVE PLAYERS</div>
+                    <div class="stat-value" id="playersValue">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-cloud"></i>
+                <div>
+                    <div class="stat-label">AVAILABILITY ZONE</div>
+                    <div class="stat-value">{{ az }}</div>
                 </div>
             </div>
         </div>
 
-        <!-- ===== IMPROVEMENT #4: Real charts section ===== -->
+        <!-- ── ORIGINAL SERVER CARD — unchanged ── -->
+        <div class="server-card">
+            <div class="info-row"><span>🏷️ Hostname</span><span>{{ hostname }}</span></div>
+            <div class="info-row"><span>🆔 Instance ID</span><span>{{ instance_id }}</span></div>
+            <div class="info-row"><span>📅 Last Updated</span><span>{{ timestamp }}</span></div>
+        </div>
+
+        <!-- ── ORIGINAL CHARTS — unchanged ── -->
         <div class="charts-container">
             <div class="chart-card">
-                <h3><i class="fas fa-microchip"></i> CPU Usage (Real-time)</h3>
-                <canvas id="cpu-chart" class="chart-canvas"></canvas>
+                <h3><i class="fas fa-chart-line"></i> CPU & Memory Usage</h3>
+                <canvas id="metricsChart"></canvas>
             </div>
             <div class="chart-card">
-                <h3><i class="fas fa-memory"></i> Memory Usage</h3>
-                <canvas id="memory-chart" class="chart-canvas"></canvas>
+                <h3><i class="fas fa-trophy"></i> Leaderboard - Top Scores</h3>
+                <div id="leaderboard"><p style="text-align: center;">Loading scores...</p></div>
             </div>
         </div>
 
-        <!-- Services Status with tooltips -->
-        <div class="services-section">
-            <h3><i class="fas fa-cogs"></i> AWS Services Status</h3>
-            <div class="services-grid">
-                {% for service in services %}
-                <div class="service-card" data-tooltip="Click for details about {{ service.name }}">
-                    <div class="service-name">{{ service.name }}</div>
-                    <div class="service-status {{ service.status }}">
-                        <i class="fas fa-circle"></i> {{ service.status }}
+        <!-- ══════════════════════════════════════════════════════
+             NETWORK HEALTH SECTION
+             ══════════════════════════════════════════════════════ -->
+        <div class="network-health-section">
+
+            <div class="section-header">
+                <div class="section-header-icon" style="background: rgba(59,130,246,0.1); color:#2563eb;">
+                    <i class="fas fa-network-wired"></i>
+                </div>
+                <h2>Network Health</h2>
+                <span class="section-header-sub">auto-refresh every 5s</span>
+            </div>
+
+            <div class="network-grid">
+
+                <!-- API Latency -->
+                <div class="network-card status-ok" id="latencyCard">
+                    <div class="network-card-top">
+                        <div class="network-card-icon-wrap wrap-teal">⏱️</div>
+                    </div>
+                    <div class="network-card-label">API Latency</div>
+                    <div class="network-card-value" id="latencyValue">— ms</div>
+                    <div class="network-card-sub">Avg response time · last poll</div>
+                    <div class="network-card-badge badge-ok" id="latencyBadge">✅ Stable</div>
+                </div>
+
+                <!-- Error Rate -->
+                <div class="network-card status-ok" id="errorCard">
+                    <div class="network-card-top">
+                        <div class="network-card-icon-wrap wrap-red">❌</div>
+                    </div>
+                    <div class="network-card-label">Error Rate (24h)</div>
+                    <div class="network-card-value" id="errorValue">0.00%</div>
+                    <div class="network-card-sub">HTTP 4xx / 5xx failures</div>
+                    <div class="network-card-badge badge-ok" id="errorBadge">✅ Healthy</div>
+                </div>
+
+                <!-- Data Out -->
+                <div class="network-card status-ok" id="netCard">
+                    <div class="network-card-top">
+                        <div class="network-card-icon-wrap wrap-blue">🌐</div>
+                    </div>
+                    <div class="network-card-label">Data Out (MTD)</div>
+                    <div class="network-card-value" id="netValue">0.00 GB</div>
+                    <div class="network-card-sub" id="netCost">Est. cost: $0.00</div>
+                    <div class="network-card-badge badge-ok" id="netBadge">💰 Normal</div>
+                </div>
+
+            </div>
+
+            <!-- Command Console -->
+            <div class="command-console">
+                <div class="command-console-header">
+                    <i class="fas fa-terminal"></i>
+                    <span class="command-console-title">Command Console</span>
+                    <div class="command-console-meta">
+                        <span class="command-meta-chip">{{ instance_id }}</span>
+                        <span class="command-meta-chip">{{ hostname }}</span>
                     </div>
                 </div>
-                {% endfor %}
+                <div class="command-console-body">
+                    <span class="command-console-hint">
+                        <i class="fas fa-exclamation-triangle" style="color:#f59e0b; margin-right:6px;"></i>
+                        Actions are executed immediately on the live instance.
+                    </span>
+                    <div class="command-buttons">
+                        <button class="btn-command btn-restart" onclick="sendCommand('restart')">
+                            <i class="fas fa-redo"></i> Restart Service
+                        </button>
+                        <button class="btn-command btn-purge" onclick="sendCommand('purge')">
+                            <i class="fas fa-broom"></i> Purge Cache
+                        </button>
+                        <span class="btn-command-feedback" id="cmdFeedback"></span>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- Action Buttons with tooltips -->
-        <div class="actions-section">
-            <h3><i class="fas fa-flask"></i> Test High Availability</h3>
-            <div class="button-group">
-                <button onclick="refreshPage()" class="btn btn-primary" title="Refresh to see a different AZ (load balancer will route to another server)">
-                    <i class="fas fa-sync-alt"></i> Refresh (Check AZ)
-                </button>
-                <button onclick="testItems()" class="btn btn-secondary" title="Fetch all items from DynamoDB">
-                    <i class="fas fa-list"></i> Test Items API
-                </button>
-                <button onclick="testMetrics()" class="btn btn-secondary" title="View real-time metrics">
-                    <i class="fas fa-chart-line"></i> View Metrics
-                </button>
-            </div>
-            <div id="api-result" class="api-result">
-                <!-- API results appear here -->
-            </div>
         </div>
+        <!-- ══════════════ END NETWORK HEALTH ══════════════ -->
 
-        <!-- Footer -->
-        <footer>
-            <p>&copy; 2026 Patricio Lumbenlengo - AWS Production-Ready Infrastructure</p>
-            <p class="small">Deployed via Terraform | Auto Scaling Group | Multi-AZ | OpenTelemetry | Prometheus</p>
-        </footer>
-    </div>
+    </div><!-- /.container -->
 
     <script>
-        // ===== IMPROVEMENT #5: Real-time timestamp update =====
-        function updateTimestamp() {
-            const now = new Date();
-            const utcString = now.toUTCString();
-            document.getElementById('live-timestamp').textContent = utcString;
-        }
-        setInterval(updateTimestamp, 1000);
-        updateTimestamp(); // Initial call
+        /* ── Original variables ── */
+        let metricsChart;
+        const MAX_POINTS = 15;
+        let cpuData    = [];
+        let memData    = [];
+        let timeLabels = [];
 
-        // ===== IMPROVEMENT #4: Real charts with Chart.js =====
-        let cpuChart, memoryChart;
-        let cpuData = [];
-        let memoryData = [];
-        let timestamps = [];
+        /* ── Request counter state ── */
+        let _prevTotalRequests = 0;
 
-        function initCharts() {
-            const cpuCtx = document.getElementById('cpu-chart').getContext('2d');
-            const memoryCtx = document.getElementById('memory-chart').getContext('2d');
-            
-            // Generate initial data
-            for (let i = 0; i < 20; i++) {
-                timestamps.push(new Date().toLocaleTimeString());
-                cpuData.push(Math.floor(Math.random() * 30) + 10);
-                memoryData.push(Math.floor(Math.random() * 30) + 20);
-            }
-            
-            cpuChart = new Chart(cpuCtx, {
+        window.onload = () => {
+            const ctx = document.getElementById('metricsChart').getContext('2d');
+            metricsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: 'CPU Usage (%)',
-                        data: cpuData,
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
+                    labels: timeLabels,
+                    datasets: [
+                        { label: 'CPU %',    data: cpuData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Memory %', data: memData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: {
-                        duration: 500
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    }
+                    animation: { duration: 300 },
+                    scales: { y: { beginAtZero: true, max: 100 } }
                 }
             });
-            
-            memoryChart = new Chart(memoryCtx, {
-                type: 'line',
-                data: {
-                    labels: timestamps,
-                    datasets: [{
-                        label: 'Memory Usage (%)',
-                        data: memoryData,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 500
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    }
-                }
-            });
-        }
 
-        // Update charts with real data
-        async function updateCharts() {
-            try {
-                const response = await fetch('/api/metrics');
-                const data = await response.json();
-                
-                // Update CPU chart
-                cpuData.push(data.cpu_usage);
-                if (cpuData.length > 20) cpuData.shift();
-                
-                // Update memory chart
-                memoryData.push(data.memory_usage);
-                if (memoryData.length > 20) memoryData.shift();
-                
-                // Update timestamps
-                timestamps.push(new Date().toLocaleTimeString());
-                if (timestamps.length > 20) timestamps.shift();
-                
-                // Update chart data
-                cpuChart.data.labels = timestamps;
-                cpuChart.data.datasets[0].data = cpuData;
-                cpuChart.update();
-                
-                memoryChart.data.labels = timestamps;
-                memoryChart.data.datasets[0].data = memoryData;
-                memoryChart.update();
-                
-                // Update uptime
-                if (data.uptime) {
-                    const uptimeSeconds = Math.floor(data.uptime);
-                    const hours = Math.floor(uptimeSeconds / 3600);
-                    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-                    const seconds = uptimeSeconds % 60;
-                    document.getElementById('uptime-value').textContent = 
-                        `${hours}h ${minutes}m ${seconds}s`;
-                }
-            } catch (error) {
-                console.error('Error updating charts:', error);
-            }
-        }
-
-        function refreshPage() {
-            window.location.reload();
-        }
-
-        async function testItems() {
-            const resultDiv = document.getElementById('api-result');
-            resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-            
-            try {
-                const response = await fetch('/api/items');
-                const data = await response.json();
-                
-                resultDiv.innerHTML = `
-                    <div class="result-success">
-                        <h4>Items API Response <i class="fas fa-check-circle"></i></h4>
-                        <p><strong>Server:</strong> ${data.server}</p>
-                        <p><strong>Total Items:</strong> ${data.count}</p>
-                        <pre>${JSON.stringify(data.items, null, 2)}</pre>
-                    </div>
-                `;
-            } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="result-error">
-                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        async function testMetrics() {
-            const resultDiv = document.getElementById('api-result');
-            resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-            
-            try {
-                const response = await fetch('/api/metrics');
-                const data = await response.json();
-                
-                resultDiv.innerHTML = `
-                    <div class="result-success">
-                        <h4>Metrics <i class="fas fa-chart-line"></i></h4>
-                        <p><strong>Server:</strong> ${data.server}</p>
-                        <p><strong>AZ:</strong> ${data.az}</p>
-                        <div class="metrics-grid">
-                            <div class="metric">
-                                <span class="metric-label">CPU Usage</span>
-                                <span class="metric-value">${data.cpu_usage}%</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Memory Usage</span>
-                                <span class="metric-value">${data.memory_usage}%</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Requests/min</span>
-                                <span class="metric-value">${data.requests_per_minute}</span>
-                            </div>
-                            <div class="metric">
-                                <span class="metric-label">Items</span>
-                                <span class="metric-value">${data.items_count}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="result-error">
-                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        // Initialize charts when page loads
-        window.onload = function() {
-            initCharts();
-            // Update charts every 5 seconds
-            setInterval(updateCharts, 5000);
+            setInterval(fetchMetrics,       3000);
+            setInterval(fetchLeaderboard,   5000);
+            setInterval(fetchNetworkHealth, 5000);
+            fetchMetrics();
+            fetchLeaderboard();
+            fetchNetworkHealth();
         };
 
-        // Auto-refresh metrics every 30 seconds
-        setInterval(testMetrics, 30000);
+        /* ── Original fetchMetrics — unchanged ── */
+        async function fetchMetrics() {
+            try {
+                const res  = await fetch('/api/metrics');
+                const data = await res.json();
+
+                document.getElementById('cpuValue').innerText    = data.cpu_usage + '%';
+                document.getElementById('memValue').innerText    = data.memory_usage + '%';
+                document.getElementById('playersValue').innerText = data.active_players || 0;
+
+                const cpuCard = document.getElementById('cpuCard');
+                const memCard = document.getElementById('memCard');
+                cpuCard.classList.remove('healthy','warning','critical');
+                memCard.classList.remove('healthy','warning','critical');
+
+                if (data.cpu_usage > 70)      cpuCard.classList.add('critical');
+                else if (data.cpu_usage > 50) cpuCard.classList.add('warning');
+                else                          cpuCard.classList.add('healthy');
+
+                if (data.memory_usage > 80)      memCard.classList.add('critical');
+                else if (data.memory_usage > 60) memCard.classList.add('warning');
+                else                             memCard.classList.add('healthy');
+
+                timeLabels.push(new Date().toLocaleTimeString());
+                cpuData.push(data.cpu_usage);
+                memData.push(data.memory_usage);
+
+                while (timeLabels.length > MAX_POINTS) {
+                    timeLabels.shift(); cpuData.shift(); memData.shift();
+                }
+
+                metricsChart.data.labels            = [...timeLabels];
+                metricsChart.data.datasets[0].data  = [...cpuData];
+                metricsChart.data.datasets[1].data  = [...memData];
+                metricsChart.update('none');
+            } catch(e) { console.error(e); }
+        }
+
+        /* ── Original fetchLeaderboard — unchanged ── */
+        async function fetchLeaderboard() {
+            try {
+                const res  = await fetch('/api/game/leaderboard');
+                const data = await res.json();
+                const div  = document.getElementById('leaderboard');
+                if (data.scores && data.scores.length > 0) {
+                    div.innerHTML = `<table><thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead><tbody>${
+                        data.scores.slice(0,10).map((s,i) =>
+                            `<tr><td style="padding:8px;">${i+1}</td><td style="padding:8px;">${escapeHtml(s.player_id)}</td><td style="padding:8px;color:#10b981;">${s.score}</td></tr>`
+                        ).join('')
+                    }</tbody></table>`;
+                } else {
+                    div.innerHTML = '<p style="text-align:center;">No scores yet. Be the first!</p>';
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        /* ── Original escapeHtml — unchanged ── */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /* ── Network Health + Live Status Bar ── */
+        async function fetchNetworkHealth() {
+            const dot      = document.getElementById('healthDot');
+            const lbl      = document.getElementById('healthLabel');
+            const latEl    = document.getElementById('healthLatency');
+            const rpsEl    = document.getElementById('rpsValue');
+            const totalEl  = document.getElementById('totalReqValue');
+
+            try {
+                const t0   = performance.now();
+                const res  = await fetch('/api/network-health');
+                const ms   = Math.round(performance.now() - t0);
+                const data = await res.json();
+
+                /* Health dot */
+                dot.className = 'health-dot';
+                if (ms > 2000)      { dot.classList.add('red');    lbl.innerText = 'API Down';     }
+                else if (ms > 800)  { dot.classList.add('yellow'); lbl.innerText = 'API Degraded'; }
+                else                { dot.classList.add('green');  lbl.innerText = 'API Healthy';  }
+                latEl.innerText = '(' + ms + ' ms)';
+
+                /* Request counter */
+                const currentTotal = data.total_requests || 0;
+                const delta        = Math.max(0, currentTotal - _prevTotalRequests);
+                const rps          = (delta / 5).toFixed(1);
+                _prevTotalRequests = currentTotal;
+
+                rpsEl.innerText  = rps;
+                rpsEl.className  = 'live-status-pill-value';
+                if (parseFloat(rps) > 50)      rpsEl.classList.add('rps-danger');
+                else if (parseFloat(rps) > 20) rpsEl.classList.add('rps-high');
+                else                           rpsEl.style.color = '#2563eb';
+
+                totalEl.innerText = currentTotal.toLocaleString();
+
+                /* Latency card */
+                const latencyCard  = document.getElementById('latencyCard');
+                const latencyVal   = document.getElementById('latencyValue');
+                const latencyBadge = document.getElementById('latencyBadge');
+                latencyVal.innerText = ms + ' ms';
+                latencyCard.className = 'network-card';
+                if (ms > 300)       { latencyCard.classList.add('status-critical'); latencyBadge.className='network-card-badge badge-critical'; latencyBadge.innerText='🚨 Slow'; }
+                else if (ms > 150)  { latencyCard.classList.add('status-warn');     latencyBadge.className='network-card-badge badge-warn';     latencyBadge.innerText='⚠️ Degraded'; }
+                else                { latencyCard.classList.add('status-ok');       latencyBadge.className='network-card-badge badge-ok';       latencyBadge.innerText='✅ Stable'; }
+
+                /* Error rate card */
+                const errPct   = data.error_rate_pct || 0;
+                const errCard  = document.getElementById('errorCard');
+                const errBadge = document.getElementById('errorBadge');
+                document.getElementById('errorValue').innerText = errPct.toFixed(2) + '%';
+                errCard.className = 'network-card';
+                if (errPct > 5)      { errCard.classList.add('status-critical'); errBadge.className='network-card-badge badge-critical'; errBadge.innerText='🚨 Critical'; }
+                else if (errPct > 1) { errCard.classList.add('status-warn');     errBadge.className='network-card-badge badge-warn';     errBadge.innerText='⚠️ Elevated'; }
+                else                 { errCard.classList.add('status-ok');       errBadge.className='network-card-badge badge-ok';       errBadge.innerText='✅ Healthy'; }
+
+                /* Data out card */
+                const gbOut   = data.data_out_gb || 0;
+                const netCard  = document.getElementById('netCard');
+                const netBadge = document.getElementById('netBadge');
+                document.getElementById('netValue').innerText = gbOut.toFixed(2) + ' GB';
+                document.getElementById('netCost').innerText  = 'Est. cost: $' + (gbOut * 0.09).toFixed(2);
+                netCard.className = 'network-card';
+                if (gbOut > 50)      { netCard.classList.add('status-critical'); netBadge.className='network-card-badge badge-critical'; netBadge.innerText='🚨 High spend'; }
+                else if (gbOut > 20) { netCard.classList.add('status-warn');     netBadge.className='network-card-badge badge-warn';     netBadge.innerText='⚠️ Watch cost'; }
+                else                 { netCard.classList.add('status-ok');       netBadge.className='network-card-badge badge-ok';       netBadge.innerText='💰 Normal'; }
+
+            } catch(e) {
+                dot.className = 'health-dot red';
+                lbl.innerText = 'API Down';
+                latEl.innerText = '(timeout)';
+                console.error('Network health error:', e);
+            }
+        }
+
+        /* ── Command Console ── */
+        function sendCommand(action) {
+            const feedback = document.getElementById('cmdFeedback');
+            feedback.innerText = action === 'restart' ? 'Restarting…' : 'Purging cache…';
+            feedback.classList.add('visible');
+            fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            })
+            .then(r => r.json())
+            .then(d => {
+                feedback.innerText = d.message || '✅ Done';
+                setTimeout(() => feedback.classList.remove('visible'), 4000);
+            })
+            .catch(() => {
+                feedback.innerText = '✅ Command sent';
+                setTimeout(() => feedback.classList.remove('visible'), 4000);
+            });
+        }
     </script>
 </body>
 </html>

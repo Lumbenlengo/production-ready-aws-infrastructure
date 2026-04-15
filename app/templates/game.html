@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumbenlengo Snake Game</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body style="display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; background: linear-gradient(135deg, #e0f2fe, #7dd3fc);">
+    <a href="/" style="position: fixed; top: 20px; left: 20px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 10px 20px; border-radius: 40px; text-decoration: none; font-weight: bold;">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <div style="text-align: center;">
+        <div style="position: relative; display: inline-block;">
+            <canvas id="snakeGame" width="400" height="400" style="background: linear-gradient(135deg, #1a1a2e, #16213e); border: 3px solid #3b82f6; border-radius: 20px; box-shadow: 0 0 30px rgba(59,130,246,0.3);"></canvas>
+            <div id="gameOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 20px;">
+                <div id="loginState">
+                    <h2 style="color: white;">Enter Your Name</h2>
+                    <input type="text" id="playerName" placeholder="Your Name" style="padding: 12px 20px; border-radius: 40px; border: none; width: 220px; text-align: center; background: #1e293b; color: white;">
+                    <button onclick="sessionLogin()" style="margin-top: 15px; padding: 12px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: bold; cursor: pointer;">START</button>
+                </div>
+                <div id="menuState" style="display: none;">
+                    <button onclick="startGame()" style="padding: 15px 40px; border: none; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: bold; cursor: pointer;">🐍 START GAME</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pause / Stop controls -->
+        <div id="gameControls" style="display: none; margin-top: 12px; gap: 10px; justify-content: center;">
+            <button id="btnPause" onclick="togglePause()" style="padding: 10px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: bold; cursor: pointer;">
+                ⏸ PAUSE
+            </button>
+            <button onclick="stopGame()" style="padding: 10px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: bold; cursor: pointer;">
+                ⏹ STOP
+            </button>
+        </div>
+    </div>
+
+    <!-- Patch script — BEFORE game.js so monkey-patching works -->
+    <script>
+        let paused = false;
+        let _patchInterval = null; // our own handle — avoids the game.js scope problem
+
+        function togglePause() {
+            const btn = document.getElementById('btnPause');
+
+            if (!paused) {
+                // ── PAUSE: stop whatever interval game.js is running ──
+                // game.js stores its interval in the global `gameInterval`
+                if (typeof gameInterval !== 'undefined' && gameInterval) {
+                    clearInterval(gameInterval);
+                    gameInterval = null;
+                }
+                // belt-and-suspenders: also clear our own handle if somehow set
+                if (_patchInterval) { clearInterval(_patchInterval); _patchInterval = null; }
+                btn.innerHTML = '▶ RESUME';
+                paused = true;
+
+            } else {
+                // ── RESUME: restart the loop using game.js's own `update` function ──
+                _patchInterval = setInterval(function() {
+                    if (typeof update === 'function') update();
+                }, 250);
+                // keep game.js's global in sync so stopGame / gameOver work correctly
+                gameInterval = _patchInterval;
+                btn.innerHTML = '⏸ PAUSE';
+                paused = false;
+            }
+        }
+
+        function stopGame() {
+            // Clear both handles to be safe
+            if (typeof gameInterval !== 'undefined' && gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            }
+            if (_patchInterval) { clearInterval(_patchInterval); _patchInterval = null; }
+
+            paused = false;
+            document.getElementById('btnPause').innerHTML = '⏸ PAUSE';
+            document.getElementById('gameControls').style.display = 'none';
+            document.getElementById('gameOverlay').style.display = 'flex';
+            document.getElementById('menuState').style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const origStart = window.startGame;
+            window.startGame = function () {
+                _patchInterval = null;
+                paused = false;
+                origStart();
+                document.getElementById('gameControls').style.display = 'flex';
+                document.getElementById('btnPause').innerHTML = '⏸ PAUSE';
+            };
+
+            const origGameOver = window.gameOver;
+            window.gameOver = function () {
+                _patchInterval = null;
+                paused = false;
+                origGameOver();
+                document.getElementById('gameControls').style.display = 'none';
+            };
+        });
+    </script>
+
+    <!-- Original game logic — completely unchanged -->
+    <script src="/static/game.js"></script>
+</body>
+</html>
