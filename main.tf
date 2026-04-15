@@ -109,11 +109,11 @@ module "cicd" {
 # ==========================================
 # 6. (Governance)
 # ==========================================
-module "compliance" {
-  source             = "./modules/compliance"
-  project_name       = var.project_name
-  environment        = var.environment
-  dynamodb_table_arn = module.storage.dynamodb_table_arn
-  artifact_bucket_id = module.storage.artifact_bucket_id
-  sns_topic_arn      = module.monitoring.sns_topic_arn
-}
+#module "compliance" {
+#  source             = "./modules/compliance"
+#  project_name       = var.project_name
+#  environment        = var.environment
+#  dynamodb_table_arn = module.storage.dynamodb_table_arn
+#  artifact_bucket_id = module.storage.artifact_bucket_id
+#  sns_topic_arn      = module.monitoring.sns_topic_arn
+#}
