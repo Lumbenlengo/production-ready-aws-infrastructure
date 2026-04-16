@@ -16,15 +16,15 @@ resource "aws_kms_alias" "main" {
   name          = "alias/${var.project_name}-${var.environment}"
   target_key_id = aws_kms_key.main.key_id
 }
+resource "random_id" "secret_suffix" {
+  byte_length = 4
+}
 
 resource "aws_secretsmanager_secret" "db" {
-  name                    = "${var.project_name}-db-secret-v3-${var.environment}"
+  
+  name                    = "${var.project_name}-db-secret-${var.environment}-${random_id.secret_suffix.hex}"
   kms_key_id              = aws_kms_key.main.arn
   recovery_window_in_days = 7
-
-  tags = {
-    Name = "${var.project_name}-db-secret"
-  }
 }
 
 resource "aws_secretsmanager_secret_version" "db" {
