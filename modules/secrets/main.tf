@@ -21,7 +21,7 @@ resource "random_id" "secret_suffix" {
 }
 
 resource "aws_secretsmanager_secret" "db" {
-  
+
   name                    = "${var.project_name}-db-secret-${var.environment}-${random_id.secret_suffix.hex}"
   kms_key_id              = aws_kms_key.main.arn
   recovery_window_in_days = 7
