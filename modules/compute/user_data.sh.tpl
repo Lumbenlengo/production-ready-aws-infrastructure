@@ -19,11 +19,11 @@ wget https://aws-codedeploy-us-east-1.s3.amazonaws.com/latest/install
 chmod +x install
 ./install auto
 systemctl enable codedeploy-agent
-systemctl start codedeploy-agent
+ systemctl start codedeploy-agent
 
 # --- Application Deployment via Docker & ECR ---
 # Variables are injected from Terraform for high reliability
-REGION="${aws_region}"
+ REGION="${aws_region}"
 PROJECT_NAME="${project_name}"
 ACCOUNT_ID="678632990341"
 ECR_URL="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${project_name}-app"
