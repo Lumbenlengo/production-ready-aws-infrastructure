@@ -65,6 +65,8 @@ module "compute" {
   source             = "./modules/compute"
   project_name       = var.project_name
   environment        = var.environment
+  aws_region         = var.aws_region
+  aws_account_id     = var.aws_account_id
   vpc_id             = module.networking.vpc_id
   private_subnet_ids = module.networking.private_subnet_ids
   instance_type      = var.instance_type

@@ -19,7 +19,6 @@ variable "environment" {
 variable "aws_region" {
   description = "AWS region"
   type        = string
-  default     = "us-east-1"
 }
 
 # ==========================================
@@ -127,3 +126,9 @@ variable "api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "aws_account_id" {
+  description = "The AWS Account ID for the target environment"
+  type        = string
+}
+

@@ -8,10 +8,15 @@ variable "max_size" { type = number }
 variable "min_size" { type = number }
 variable "web_sg_id" { type = string }
 variable "target_group_arn" { type = string }
+variable "aws_account_id" {
+  description = "The AWS Account ID"
+  type        = string
+}
 
-
-
-
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
 
 variable "kms_key_arn" {
   type    = string

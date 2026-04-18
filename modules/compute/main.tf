@@ -98,9 +98,10 @@ resource "aws_launch_template" "main" {
   }
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
 
-    aws_region   = "us-east-1"
+    aws_region   = var.aws_region
     project_name = var.project_name
     environment  = var.environment
+    account_id   = var.aws_account_id
   }))
 
   tag_specifications {
@@ -194,3 +195,4 @@ resource "aws_autoscaling_policy" "cpu_tracking" {
     target_value = 50.0
   }
 }
+
