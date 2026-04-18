@@ -75,29 +75,37 @@ resource "aws_iam_instance_profile" "ec2" {
 }
 
 # ── Launch Template ───────────────────────────────────────────────────
-
+# Defines the blueprint for the EC2 instances in the Auto Scaling Group
 resource "aws_launch_template" "main" {
   name_prefix   = "${var.project_name}-lt-"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
 
+  # Attach the IAM Role to the instance (needed for ECR and CodeDeploy)
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2.name
   }
 
-  vpc_security_group_ids = [var.web_sg_id]
+  # Use network_interfaces for better control over networking
+  network_interfaces {
+    associate_public_ip_address = false # Keeping it private for security
+    security_groups             = [var.web_sg_id]
+  }
 
+  # IMDSv2 — Security Best Practice
+  # Ensures all metadata requests require a session token (protects against SSRF)
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "required" # IMDSv2 — security best practice
+    http_tokens                 = "required"
     http_put_response_hop_limit = 1
   }
 
   monitoring {
-    enabled = true
+    enabled = true # Detailed monitoring (1-minute intervals) for CloudWatch
   }
-  user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
 
+  # User Data script with variables injected from Terraform
+  user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
     aws_region   = var.aws_region
     project_name = var.project_name
     environment  = var.environment
@@ -109,19 +117,21 @@ resource "aws_launch_template" "main" {
     tags = {
       Name        = "${var.project_name}-instance"
       Environment = var.environment
+      Project     = var.project_name
     }
   }
 
+  # Ensures a new template version is created before the old one is deleted
   lifecycle {
     create_before_destroy = true
   }
 }
 
+# ── AMI Data Source ───────────────────────────────────────────────────
+# Automatically fetches the latest Amazon Linux 2023 image
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
-
-
 
   filter {
     name   = "name"
@@ -133,7 +143,6 @@ data "aws_ami" "amazon_linux" {
     values = ["hvm"]
   }
 }
-
 # ── Auto Scaling Group ────────────────────────────────────────────────
 
 resource "aws_autoscaling_group" "main" {
