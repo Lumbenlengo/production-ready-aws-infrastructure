@@ -1,0 +1,77 @@
+name: Deploy — Development
+
+# Trigger: Executes on every push to the develop branch
+on:
+  push:
+    branches: [develop]
+
+# Security: OIDC permissions for AWS authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy — Dev
+    runs-on: ubuntu-latest
+    environment: development
+
+    # Global environment variables for Terraform and ECR
+    env:
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_api_key: ${{ secrets.API_KEY }}
+      ECR_REGISTRY: 678632990341.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPOSITORY: lumbenlengo-app
+
+    steps:
+      # Step 1: Download source code including Dockerfile and App files
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Securely authenticate with AWS using OIDC
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      # Step 3: Authenticate Docker client to Amazon ECR Registry
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step 4: Application Build - Create Docker image and upload to ECR
+      # This replaces the need for AWS CodeBuild in this dev workflow
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      # Step 5: Initialize Terraform environment
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.3"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init -backend-config="key=dev/terraform.tfstate"
+
+      # Step 6: Code quality checks for infrastructure
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Step 7: Generate and apply infrastructure plan
+      # This provisions VPC, ALB, and EC2 instances which pull the new image
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -no-color \
+            -out=tfplan \
+            -var-file="environments/dev/terraform.tfvars"
+
+      - name: Terraform Apply
+        run: terraform apply -no-color -auto-approve tfplan

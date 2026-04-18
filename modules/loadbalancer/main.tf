@@ -1,14 +1,14 @@
 # modules/loadbalancer/main.tf
 
 # ── ALB Security Group ────────────────────────────────────────────────
-
+# Defines who can access the Load Balancer (Public Internet)
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg-${var.environment}"
   description = "Allow HTTP and HTTPS inbound to the ALB"
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "HTTP"
+    description = "HTTP Inbound"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -16,7 +16,7 @@ resource "aws_security_group" "alb_sg" {
   }
 
   ingress {
-    description = "HTTPS"
+    description = "HTTPS Inbound"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -24,7 +24,7 @@ resource "aws_security_group" "alb_sg" {
   }
 
   egress {
-    description = "All outbound"
+    description = "Allow all outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -32,12 +32,13 @@ resource "aws_security_group" "alb_sg" {
   }
 
   tags = {
-    Name = "${var.project_name}-alb-sg"
+    Name        = "${var.project_name}-alb-sg"
+    Environment = var.environment
   }
 }
 
-# ── Application Load Balancer ─────────────────────────────────────────
-
+# ── Application Load Balancer (ALB) ───────────────────────────────────
+# Public-facing entry point distributed across public subnets
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
   internal                   = false
@@ -47,36 +48,42 @@ resource "aws_lb" "main" {
   enable_deletion_protection = var.enable_deletion_protection
 
   tags = {
-    Name = "${var.project_name}-alb"
+    Name        = "${var.project_name}-alb"
+    Environment = var.environment
   }
 }
 
 # ── Target Group ──────────────────────────────────────────────────────
-
+# Routes traffic to EC2 instances on port 8000
 resource "aws_lb_target_group" "main" {
   name     = "${var.project_name}-tg"
   port     = 8000
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
+  # ZERO DOWNTIME: Wait 60 seconds for active connections to drain 
+  # before terminating an old instance during a deployment.
+  deregistration_delay = 60
+
   health_check {
     enabled             = true
-    path                = "/health/live"
+    path                = "/" # Root path where the Snake app responds
     port                = "traffic-port"
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
+    protocol            = "HTTP"
+    healthy_threshold   = 2   # Consecutive successes to mark as Healthy
+    unhealthy_threshold = 2   # Consecutive failures to mark as Unhealthy
+    timeout             = 5   # Seconds to wait for a response
+    interval            = 15  # Seconds between health check attempts
     matcher             = "200"
   }
 
   tags = {
-    Name = "${var.project_name}-tg"
+    Name        = "${var.project_name}-tg"
+    Environment = var.environment
   }
 }
 
-# ── Listeners ─────────────────────────────────────────────────────────
-
+# ── HTTP Listener (Redirect to HTTPS) ─────────────────────────────────
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -93,16 +100,13 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# ── HTTPS Listener (Secure Traffic) ───────────────────────────────────
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-
-  certificate_arn = aws_acm_certificate_validation.cert.certificate_arn
-
-  depends_on = [aws_acm_certificate_validation.cert]
-
+  certificate_arn   = aws_acm_certificate.cert.arn
 
   default_action {
     type             = "forward"
@@ -111,17 +115,14 @@ resource "aws_lb_listener" "https" {
 }
 
 # ── ACM Certificate ───────────────────────────────────────────────────
-# DNS validation is managed manually in Squarespace DNS.
-# The CNAME validation record was added to Squarespace and the
-# certificate is already ISSUED. This resource manages the certificate
-# lifecycle — no Route53 validation resource needed.
-
+# Managed via DNS validation. Ensure CNAME is present in your DNS provider.
 resource "aws_acm_certificate" "cert" {
   domain_name       = var.domain_name
   validation_method = "DNS"
 
   tags = {
-    Name = "${var.project_name}-cert"
+    Name        = "${var.project_name}-cert"
+    Environment = var.environment
   }
 
   lifecycle {
@@ -129,15 +130,13 @@ resource "aws_acm_certificate" "cert" {
   }
 }
 
+# Validates the certificate is issued before the listener uses it
 resource "aws_acm_certificate_validation" "cert" {
   certificate_arn = aws_acm_certificate.cert.arn
 }
 
-# ── Route53 A record — ALB alias ──────────────────────────────────────
-# Note: patriciolumbe.com DNS is managed in Squarespace, not Route53.
-# The api.patriciolumbe.com CNAME pointing to the ALB is managed
-# in Squarespace. This record is kept for future DNS migration.
-
+# ── Route53 Alias Record ──────────────────────────────────────────────
+# Points your domain directly to the ALB DNS name
 resource "aws_route53_record" "alb" {
   zone_id = var.hosted_zone_id
   name    = var.domain_name
