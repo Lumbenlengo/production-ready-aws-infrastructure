@@ -155,11 +155,11 @@ resource "aws_autoscaling_group" "main" {
     version = "$Latest"
   }
 
- instance_refresh {
+  instance_refresh {
     strategy = "Rolling"
     preferences {
       min_healthy_percentage = 50
-      instance_warmup        = 300 
+      instance_warmup        = 300
     }
   }
 

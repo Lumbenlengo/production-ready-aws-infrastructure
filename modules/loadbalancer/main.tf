@@ -70,10 +70,10 @@ resource "aws_lb_target_group" "main" {
     path                = "/" # Root path where the Snake app responds
     port                = "traffic-port"
     protocol            = "HTTP"
-    healthy_threshold   = 2   # Consecutive successes to mark as Healthy
-    unhealthy_threshold = 2   # Consecutive failures to mark as Unhealthy
-    timeout             = 5   # Seconds to wait for a response
-    interval            = 15  # Seconds between health check attempts
+    healthy_threshold   = 2  # Consecutive successes to mark as Healthy
+    unhealthy_threshold = 2  # Consecutive failures to mark as Unhealthy
+    timeout             = 5  # Seconds to wait for a response
+    interval            = 15 # Seconds between health check attempts
     matcher             = "200"
   }
 
