@@ -42,6 +42,8 @@ resource "aws_iam_role_policy" "ec2_custom" {
         ]
         Resource = "*"
       },
+
+
       {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
@@ -64,7 +66,18 @@ resource "aws_iam_role_policy" "ec2_custom" {
           "s3:PutObject"
         ]
         Resource = "arn:aws:s3:::${var.project_name}-*/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "*"
       }
+
     ]
   })
 }
