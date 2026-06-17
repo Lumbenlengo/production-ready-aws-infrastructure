@@ -130,10 +130,7 @@ variable "api_key" {
   sensitive   = true
 }
 
-variable "aws_account_id" {
-  description = "The AWS Account ID for the target environment"
-  type        = string
-}
+
 
 variable "image_tag" {
   description = "Docker image tag to deploy (e.g., dev-abc123, staging-abc123, v1.2.3)"

@@ -11,7 +11,7 @@ desired_capacity = 1
 max_size         = 2
 min_size         = 1
 alert_email      = "patriciolumbee@gmail.com"
-aws_account_id   = "678632990341"
+
 
 github_owner     = "Lumbenlengo"
 github_repo_name = "production-ready-aws-infrastructure"
