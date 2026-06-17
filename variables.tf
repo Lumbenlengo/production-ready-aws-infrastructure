@@ -1,6 +1,6 @@
-# ==========================================
+
 # Project Metadata
-# ==========================================
+
 variable "project_name" {
   description = "Base name used for all resources"
   type        = string
@@ -21,17 +21,21 @@ variable "aws_region" {
   type        = string
 }
 
-# ==========================================
+variable "owner" {
+  description = "Owner of the project"
+  type        = string
+}
+
 # Networking
-# ==========================================
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
 }
 
-# ==========================================
+
 # Compute
-# ==========================================
+
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
@@ -52,9 +56,9 @@ variable "min_size" {
   type        = number
 }
 
-# ==========================================
+
 # DNS & SSL
-# ==========================================
+
 variable "domain_name" {
   description = "Domain name for the API (e.g. api.patriciolumbe.com)"
   type        = string
@@ -66,17 +70,17 @@ variable "my_ip" {
   default     = null
 }
 
-# ==========================================
+
 # Monitoring & Alerts
-# ==========================================
+
 variable "alert_email" {
   description = "Email address for CloudWatch alarm notifications"
   type        = string
 }
 
-# ==========================================
+
 # CI/CD
-# ==========================================
+
 variable "github_owner" {
   description = "GitHub username or organisation"
   type        = string
@@ -98,18 +102,17 @@ variable "enable_waf_association" {
   default     = false
 }
 
-# ==========================================
 # Load Balancer
-# ==========================================
+
 variable "enable_deletion_protection" {
   description = "Enable deletion protection on the ALB. Always true in prod."
   type        = bool
   default     = false
 }
 
-# ==========================================
+
 # Secrets — injected via environment variables
-# ==========================================
+
 variable "db_password" {
   description = "Database password — minimum 16 characters"
   type        = string
@@ -132,3 +135,8 @@ variable "aws_account_id" {
   type        = string
 }
 
+variable "image_tag" {
+  description = "Docker image tag to deploy (e.g., dev-abc123, staging-abc123, v1.2.3)"
+  type        = string
+  default     = "latest"
+}

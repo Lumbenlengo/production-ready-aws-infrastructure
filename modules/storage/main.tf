@@ -1,6 +1,6 @@
 # modules/storage/main.tf
 
-# ── S3 Artifacts Bucket ───────────────────────────────────────────────
+# S3 Artifacts Bucket 
 
 resource "aws_s3_bucket" "artifacts" {
   bucket        = "${var.project_name}-artifacts-${var.environment}"
@@ -46,7 +46,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
     status = "Enabled"
 
     filter {
-      prefix = "" # ← Adicionar isto (ou filter vazio para todos)
+      prefix = "" 
     }
 
     expiration {
@@ -59,7 +59,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
   }
 }
 
-# ── DynamoDB Metrics Table ────────────────────────────────────────────
+#  DynamoDB Metrics Table 
 
 resource "aws_dynamodb_table" "metrics" {
   name         = "${var.project_name}-metrics-${var.environment}"

@@ -1,6 +1,6 @@
 # modules/secrets/main.tf
 
-# ── KMS Key ───────────────────────────────────────────────────────────
+# KMS Key 
 
 resource "aws_kms_key" "main" {
   description             = "KMS key for ${var.project_name} ${var.environment}"
@@ -36,7 +36,7 @@ resource "aws_secretsmanager_secret_version" "db" {
   })
 }
 
-# ── SSM Parameter Store — API key ─────────────────────────────────────
+#  SSM Parameter Store — API key 
 
 resource "aws_ssm_parameter" "api_key" {
   name   = "/${var.project_name}/${var.environment}/api/key"
@@ -49,7 +49,7 @@ resource "aws_ssm_parameter" "api_key" {
   }
 }
 
-# ── SSM Parameter Store — App config ─────────────────────────────────
+# SSM Parameter Store App config 
 
 resource "aws_ssm_parameter" "app_config" {
   name = "/${var.project_name}/${var.environment}/app/config"
@@ -65,8 +65,8 @@ resource "aws_ssm_parameter" "app_config" {
   }
 }
 
-# ── SSM Parameter Store — SLO error budget flag (Path A+) ────────────
-# Lambda checks this flag before allowing CodePipeline to deploy.
+#  SSM Parameter Store — SLO error budget flag 
+
 # When error budget is consumed, this is set to "LOCKED".
 
 resource "aws_ssm_parameter" "slo_deployment_gate" {

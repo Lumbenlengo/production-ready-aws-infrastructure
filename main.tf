@@ -1,12 +1,14 @@
 
-# ==========================================
+
 # 1. BASE (Foundation)
-# ==========================================
+
 module "networking" {
   source       = "./modules/networking"
   project_name = var.project_name
   environment  = var.environment
   vpc_cidr     = var.vpc_cidr
+  aws_region   = var.aws_region
+  domain_name  = var.domain_name
 }
 
 module "secrets" {
@@ -26,9 +28,9 @@ module "storage" {
 }
 
 
-# ==========================================
+
 # 2. (Infrastructure)
-# ==========================================
+
 module "loadbalancer" {
   source                     = "./modules/loadbalancer"
   project_name               = var.project_name
@@ -58,9 +60,9 @@ module "waf" {
   depends_on             = [module.loadbalancer]
 }
 
-# ==========================================
+
 # 3.(Application)
-# ==========================================
+
 module "compute" {
   source             = "./modules/compute"
   project_name       = var.project_name
@@ -78,9 +80,9 @@ module "compute" {
   kms_key_arn        = module.secrets.kms_key_arn
 
 }
-# ==========================================
+
 # 4. (Observability)
-# ==========================================
+
 module "monitoring" {
   source                  = "./modules/monitoring"
   project_name            = var.project_name
@@ -91,31 +93,14 @@ module "monitoring" {
   target_group_arn_suffix = module.loadbalancer.target_group_arn_suffix
 }
 
-# ==========================================
-# 5. (Deployment)
-# ==========================================
-module "cicd" {
-  source               = "./modules/cicd"
-  project_name         = var.project_name
-  environment          = var.environment
-  github_owner         = var.github_owner
-  github_repo_name     = var.github_repo_name
-  artifact_bucket_arn  = module.storage.artifact_bucket_arn
-  artifact_bucket_id   = module.storage.artifact_bucket_id
-  asg_name             = module.compute.asg_name
-  target_group_name    = module.loadbalancer.target_group_name
-  sns_topic_arn        = module.monitoring.sns_topic_arn
-  rollback_alarm_names = module.monitoring.rollback_alarm_names
-}
 
-# ==========================================
-# 6. (Governance)
-# ==========================================
-#module "compliance" {
-#  source             = "./modules/compliance"
-#  project_name       = var.project_name
-#  environment        = var.environment
-#  dynamodb_table_arn = module.storage.dynamodb_table_arn
-#  artifact_bucket_id = module.storage.artifact_bucket_id
-#  sns_topic_arn      = module.monitoring.sns_topic_arn
-#}
+# 5.  (Governance)
+
+module "compliance" {
+  source             = "./modules/compliance"
+  project_name       = var.project_name
+  environment        = var.environment
+  dynamodb_table_arn = module.storage.dynamodb_table_arn
+  artifact_bucket_id = module.storage.artifact_bucket_id
+  sns_topic_arn      = module.monitoring.sns_topic_arn
+}

@@ -41,9 +41,8 @@ class Item(BaseModel):
     name: str
     description: Optional[str] = None
 
-# ─────────────────────────────────────────────────────────────────────
 # MAIN DASHBOARD ROUTE
-# ─────────────────────────────────────────────────────────────────────
+
 
 @router.get("/", response_class=HTMLResponse)
 @limiter.limit("60/minute")
@@ -79,20 +78,26 @@ async def read_root(request: Request, hc: HealthCheck = Depends(get_health_check
         ],
     }
     active_connections.dec()
-    return templates.TemplateResponse("index.html", context)
 
-# ─────────────────────────────────────────────────────────────────────
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context=context
+    )
+
 # GAME ROUTE (opens in new tab)
-# ─────────────────────────────────────────────────────────────────────
 
 @router.get("/game", response_class=HTMLResponse)
 async def game_page(request: Request):
     """Standalone game page"""
-    return templates.TemplateResponse("game.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="game.html",
+        context={"request": request}
+    )
 
-# ─────────────────────────────────────────────────────────────────────
 # GAME API ENDPOINTS
-# ─────────────────────────────────────────────────────────────────────
+
 
 @router.post("/api/game/score")
 @limiter.limit("30/minute")
@@ -116,9 +121,8 @@ async def save_game_score(request: Request):
 async def get_leaderboard(request: Request):
     return {"scores": game_scores}
 
-# ─────────────────────────────────────────────────────────────────────
-# HEALTH ENDPOINTS
-# ─────────────────────────────────────────────────────────────────────
+
+# HealthCheck
 
 @router.get("/health/live")
 @limiter.limit("100/minute")
@@ -156,9 +160,8 @@ async def health_html(request: Request, hc: HealthCheck = Depends(get_health_che
     </body></html>
     """)
 
-# ─────────────────────────────────────────────────────────────────────
 # API ENDPOINTS
-# ─────────────────────────────────────────────────────────────────────
+
 
 @router.get("/api/health")
 @limiter.limit("100/minute")

@@ -1,6 +1,6 @@
 # modules/loadbalancer/main.tf
 
-# ── ALB Security Group ────────────────────────────────────────────────
+#  ALB Security Group 
 # Defines who can access the Load Balancer (Public Internet)
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg-${var.environment}"
@@ -37,7 +37,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# ── Application Load Balancer (ALB) ───────────────────────────────────
+#  Application Load Balancer (ALB)
 # Public-facing entry point distributed across public subnets
 resource "aws_lb" "main" {
   name                       = "${var.project_name}-alb"
@@ -53,7 +53,7 @@ resource "aws_lb" "main" {
   }
 }
 
-# ── Target Group ──────────────────────────────────────────────────────
+#  Target Group 
 # Routes traffic to EC2 instances on port 8000
 resource "aws_lb_target_group" "main" {
   name     = "${var.project_name}-tg"
@@ -83,7 +83,7 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# ── HTTP Listener (Redirect to HTTPS) ─────────────────────────────────
+#  HTTP Listener (Redirect to HTTPS) 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -100,7 +100,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# ── HTTPS Listener (Secure Traffic) ───────────────────────────────────
+#  HTTPS Listener (Secure Traffic) 
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
@@ -114,7 +114,7 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# ── ACM Certificate ───────────────────────────────────────────────────
+#  ACM Certificate 
 # Managed via DNS validation. Ensure CNAME is present in your DNS provider.
 resource "aws_acm_certificate" "cert" {
   domain_name       = var.domain_name
@@ -135,7 +135,7 @@ resource "aws_acm_certificate_validation" "cert" {
   certificate_arn = aws_acm_certificate.cert.arn
 }
 
-# ── Route53 Alias Record ──────────────────────────────────────────────
+#  Route53 Alias Record 
 # Points your domain directly to the ALB DNS name
 resource "aws_route53_record" "alb" {
   zone_id = var.hosted_zone_id

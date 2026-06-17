@@ -1,26 +1,34 @@
- FROM python:3.12-slim
+FROM python:3.12-slim
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set the working directory to /app (where your code actually lives)
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -s /bin/sh appuser
+
 WORKDIR /app
 
-# Copy requirements and install
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
 COPY app/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code into /app
-COPY app/ .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Ensure scripts are executable
-RUN chmod +x /app/scripts/*.sh
+COPY --chown=appuser:appuser app/ .
 
-# IMPORTANT: Tell Python that the current directory (/app) is a source of modules
-ENV PYTHONPATH=/app
+RUN if [ -d /app/scripts ]; then \
+        chmod +x /app/scripts/*.sh; \
+    fi
 
 EXPOSE 8000
 
-# Updated CMD to run directly from the /app folder
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://localhost:8000/health || exit 1
+
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

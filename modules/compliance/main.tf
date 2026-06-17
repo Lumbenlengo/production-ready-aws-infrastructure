@@ -1,6 +1,6 @@
 # modules/compliance/main.tf
 
-# ── AWS Config ────────────────────────────────────────────────────────
+# AWS Config 
 
 resource "aws_iam_role" "config" {
   name = "${var.project_name}-config-role-${var.environment}"

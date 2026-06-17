@@ -1,6 +1,6 @@
 # modules/compute/main.tf
 
-# ── IAM Role for EC2 instances ────────────────────────────────────────
+# IAM Role for EC2 instances
 
 resource "aws_iam_role" "ec2" {
   name = "${var.project_name}-ec2-role-${var.environment}"
@@ -74,7 +74,7 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 }
 
-# ── Launch Template ───────────────────────────────────────────────────
+# Launch Template 
 # Defines the blueprint for the EC2 instances in the Auto Scaling Group
 resource "aws_launch_template" "main" {
   name_prefix   = "${var.project_name}-lt-"
@@ -143,7 +143,7 @@ data "aws_ami" "amazon_linux" {
     values = ["hvm"]
   }
 }
-# ── Auto Scaling Group ────────────────────────────────────────────────
+# Auto Scaling Group 
 
 resource "aws_autoscaling_group" "main" {
   name                = "${var.project_name}-asg-${var.environment}"
@@ -190,7 +190,7 @@ resource "aws_autoscaling_group" "main" {
   }
 }
 
-# ── Target Tracking Scaling Policy (50% CPU) ──────────────────────────
+# Target Tracking Scaling Policy (50% CPU) 
 
 resource "aws_autoscaling_policy" "cpu_tracking" {
   name                   = "${var.project_name}-cpu-tracking-${var.environment}"

@@ -1,6 +1,6 @@
 # modules/security/main.tf
 
-# ── Web Security Group (EC2 instances) ───────────────────────────────
+# Web Security Group (EC2 instances) 
 
 resource "aws_security_group" "web_sg" {
   name        = "${var.project_name}-web-sg-${var.environment}"
@@ -39,7 +39,7 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# ── GuardDuty ─────────────────────────────────────────────────────────
+# GuardDuty 
 # modules/security/main.tf
 
 resource "aws_guardduty_detector" "main" {
@@ -86,7 +86,7 @@ resource "aws_cloudwatch_event_rule" "guardduty_high" {
   }
 }
 
-# ── Security Hub (Path A+) ────────────────────────────────────────────
+# Security Hub 
 
 resource "aws_securityhub_account" "main" {}
 
@@ -100,8 +100,7 @@ resource "aws_securityhub_standards_subscription" "aws_foundational" {
   depends_on    = [aws_securityhub_account.main]
 }
 
-# ── IAM Access Analyzer (Path A+) ────────────────────────────────────
-
+# IAM Access Analyzer 
 resource "aws_accessanalyzer_analyzer" "main" {
   analyzer_name = "${var.project_name}-access-analyzer"
   type          = "ACCOUNT"

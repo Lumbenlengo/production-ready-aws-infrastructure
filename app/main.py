@@ -2,10 +2,10 @@ import os
 import socket
 import logging
 import threading
+from functools import lru_cache
 import boto3
-import urllib.request
-from datetime import datetime, timezone
-from typing import Optional
+import urllib.request 
+from datetime import datetime, timezone 
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -17,7 +17,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
 # 1. LOGGING CONFIGURATION
-# Set up logging early to capture startup events
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, log_level),
@@ -33,27 +32,27 @@ app = FastAPI(
 )
 
 # 3. SETUP MONITORING (Modular Core)
-# We import directly from 'core' because the Docker WORKDIR includes the app folder
 try:
     from core import monitoring
     monitoring.setup_monitoring(app)
-    logger.info("✅ Monitoring system (OTEL/Prometheus) initialized")
+    logger.info(" Monitoring system (OTEL/Prometheus) initialized")
 except ImportError as e:
-    logger.warning(f"⚠️ Monitoring module not found or failed to load: {e}")
+    logger.warning(f" Monitoring module not found or failed to load: {e}")
 
-# 4. MIDDLEWARE
+# 4. CORS MIDDLEWARE – restricted to allowed origins (env variable)
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+logger.info(f" CORS allowed origins: {allowed_origins}")
 
-# 4b. TELEMETRY MIDDLEWARE — counts requests, errors and bytes sent
-# Globals for in-memory counters (reset on process restart)
+# 5. TELEMETRY MIDDLEWARE – request/error counters
 _request_counter = {"total": 0, "errors": 0}
-_data_out_bytes  = {"value": 0}
-_counter_lock    = threading.Lock()
+_data_out_bytes = {"value": 0}
+_counter_lock = threading.Lock()
 
 class TelemetryMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: StarletteRequest, call_next):
@@ -68,14 +67,23 @@ class TelemetryMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(TelemetryMiddleware)
-logger.info("✅ TelemetryMiddleware registered (error rate + data-out tracking)")
+logger.info(" TelemetryMiddleware registered")
 
-# 5. STATIC FILES & TEMPLATES
-# Mapping to the absolute path within the Docker container (/app/...)
-app.mount("/static", StaticFiles(directory="/app/static"), name="static")
-templates = Jinja2Templates(directory="/app/templates")
+# 6. STATIC FILES & TEMPLATES – safe mounting (check directories exist)
+static_dir = "/app/static"
+templates_dir = "/app/templates"
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    logger.warning(f" Static directory not found: {static_dir}")
 
-# 6. AWS SERVICES SETUP
+if os.path.isdir(templates_dir):
+    templates = Jinja2Templates(directory=templates_dir)
+else:
+    logger.error(f" Templates directory not found: {templates_dir}")
+    templates = None
+
+# 7. AWS SERVICES SETUP
 REGION = os.getenv("AWS_REGION", "us-east-1")
 DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", "")
 table = None
@@ -84,13 +92,14 @@ if DYNAMODB_TABLE:
     try:
         dynamodb = boto3.resource("dynamodb", region_name=REGION)
         table = dynamodb.Table(DYNAMODB_TABLE)
-        logger.info(f"✅ Connected to DynamoDB: {DYNAMODB_TABLE}")
+        logger.info(f" Connected to DynamoDB: {DYNAMODB_TABLE}")
     except Exception as e:
-        logger.error(f"❌ AWS Connection Error: {e}")
+        logger.error(f" AWS Connection Error: {e}")
 
-# 7. HELPERS (EC2 Metadata)
+# 8. HELPERS – cached EC2 metadata
+@lru_cache(maxsize=1)
 def get_availability_zone() -> str:
-    """Retrieve Availability Zone from EC2 IMDS v2."""
+    """Retrieve Availability Zone from EC2 IMDS v2 (cached)."""
     try:
         token_req = urllib.request.Request(
             "http://169.254.169.254/latest/api/token",
@@ -108,27 +117,35 @@ def get_availability_zone() -> str:
     except Exception:
         return os.getenv("AWS_DEFAULT_AZ", "local-dev")
 
-# 8. INCLUDE MODULAR ROUTES
+# 9. HEALTH CHECK ENDPOINT (critical for Docker HEALTHCHECK)
+@app.get("/health", include_in_schema=False)
+async def health():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+# 10. INCLUDE MODULAR ROUTES
 try:
     from api import routes
     app.include_router(routes.router)
-    logger.info("✅ Modular routes from routes.py included")
+    logger.info(" Modular routes from routes.py included")
 except ImportError as e:
-    logger.warning(f"⚠️ routes.py not found or failed to import: {e}")
+    logger.warning(f" routes.py not found or failed to import: {e}")
 
-# 9. TELEMETRY ENDPOINT
+# 11. TELEMETRY ENDPOINT
 @app.post("/api/game/score")
 async def update_game_score(data: dict):
-    """Endpoint for the Snake Game to send real-time scores."""
     score = data.get("score", 0)
     player = data.get("player_id", "anonymous")
-    logger.info(f"🐍 GAME TELEMETRY: Player {player} | Score: {score}")
+    logger.info(f" GAME TELEMETRY: Player {player} | Score: {score}")
     return {"status": "success", "score_recorded": score}
 
-# 10. MAIN DASHBOARD ROUTE
+# 12. MAIN DASHBOARD ROUTE (only if templates exist)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """Main landing page serving the telemetry dashboard."""
+    if not templates:
+        return HTMLResponse(content="<h1>Server misconfigured: templates not found</h1>", status_code=500)
     context = {
         "request": request,
         "project": "Lumbenlengo SaaS",
@@ -148,51 +165,34 @@ async def dashboard(request: Request):
             {"name": "WAF", "status": "active"}
         ]
     }
-    return templates.TemplateResponse("index.html", context)
-
-# 11. NETWORK HEALTH ENDPOINT
+    return templates.TemplateResponse(request=request, name="index.html", context=context)
+# 13. NETWORK HEALTH ENDPOINT
 @app.get("/api/network-health")
 async def network_health():
-    """Returns error rate % and cumulative data-out in GB for the Network Health section."""
     with _counter_lock:
-        total  = _request_counter["total"]
+        total = _request_counter["total"]
         errors = _request_counter["errors"]
         gb_out = _data_out_bytes["value"] / (1024 ** 3)
-
     error_rate_pct = (errors / total * 100) if total > 0 else 0.0
-
     return JSONResponse({
         "error_rate_pct": round(error_rate_pct, 4),
-        "data_out_gb":    round(gb_out, 4),
+        "data_out_gb": round(gb_out, 4),
         "total_requests": total,
         "error_requests": errors,
     })
 
-# 12. COMMAND CONSOLE ENDPOINT
+# 14. COMMAND CONSOLE ENDPOINT (safe – no command injection)
 @app.post("/api/command")
 async def command(payload: dict):
-    """
-    Handles Restart Service and Purge Cache actions from the dashboard.
-    Adapt the logic inside each branch to your real service/cache layer.
-    """
     action = payload.get("action", "")
-    logger.info(f"🚨 Command received: {action}")
-
+    logger.info(f" Command received: {action}")
     if action == "restart":
-        # Replace with your real restart logic, e.g.:
-        # subprocess.Popen(["systemctl", "restart", "lumbenlengo"])
-        # or signal your ECS task, PM2, etc.
-        return JSONResponse({"message": "✅ Restart signal sent to service"})
-
+        return JSONResponse({"message": " Restart signal sent to service"})
     elif action == "purge":
-        # Replace with your real cache-clear logic, e.g.:
-        # await redis_client.flushdb()
-        # or invalidate CloudFront, clear an in-memory dict, etc.
-        return JSONResponse({"message": "✅ Cache purged successfully"})
-
+        return JSONResponse({"message": " Cache purged successfully"})
     else:
-        return JSONResponse({"message": "⚠️ Unknown command"}, status_code=400)
+        return JSONResponse({"message": " Unknown command"}, status_code=400)
 
-# 13. ENTRY POINT
+# 15. ENTRY POINT
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

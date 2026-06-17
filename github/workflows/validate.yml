@@ -1,0 +1,136 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VAR_db_password: "dummy-password-123456789012"
+  TF_VAR_api_key: "dummy-api-key-for-validation"
+  TF_VAR_image_tag: "dummy-image-tag"
+
+jobs:
+  terraform-validate:
+    name: Terraform Validate & Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.3"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: |
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
+            terraform init -backend-config="key=staging/terraform.tfstate"
+          else
+            terraform init -backend-config="key=dev/terraform.tfstate"
+          fi
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan (save to file)
+        id: plan
+        continue-on-error: false
+        run: |
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
+            terraform plan -no-color -out=plan.out \
+              -var-file="environments/staging/terraform.tfvars"
+          else
+            terraform plan -no-color -out=plan.out \
+              -var-file="environments/dev/terraform.tfvars"
+          fi
+
+      - name: Convert plan to text (for comment)
+        if: steps.plan.outcome == 'success'
+        run: terraform show -no-color plan.out > plan.txt
+
+      - name: Upload full plan as artifact
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: plan.out
+          retention-days: 7
+
+      - name: Upload plan text as artifact
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-text
+          path: plan.txt
+          retention-days: 7
+
+      - name: Generate plan summary
+        if: steps.plan.outcome == 'success'
+        id: summary
+        run: |
+          TOTAL_LINES=$(wc -l < plan.txt)
+          echo "Total lines: $TOTAL_LINES"
+          if [ $TOTAL_LINES -gt 250 ]; then
+            (head -200 plan.txt; echo "... (truncated, full plan attached as artifact)") > plan_summary.txt
+          else
+            cp plan.txt plan_summary.txt
+          fi
+          {
+            echo 'PLAN_SUMMARY<<EOF'
+            cat plan_summary.txt
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+      - name: Comment Plan on PR
+        uses: actions/github-script@v7
+        if: always() && steps.plan.outcome != 'failure'
+        env:
+          PLAN_SUMMARY: ${{ steps.summary.outputs.PLAN_SUMMARY }}
+          PLAN_ARTIFACT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts
+        with:
+          script: |
+            const plan = process.env.PLAN_SUMMARY || 'No plan output (plan may have failed).';
+            const artifactUrl = process.env.PLAN_ARTIFACT_URL;
+            const output = `#### Terraform Plan — \`${{ github.base_ref }}\`
+            <details><summary>Show Plan Summary</summary>
+
+            \`\`\`hcl
+            ${plan.substring(0, 60000)}
+            \`\`\`
+
+            **Full plan attached as an [artifact](${artifactUrl})** (downloadable for 7 days).
+            </details>`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Notify plan failure
+        if: steps.plan.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Terraform plan **failed**. Check the workflow logs for details.'
+            });
