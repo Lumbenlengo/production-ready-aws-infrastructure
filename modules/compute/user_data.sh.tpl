@@ -29,7 +29,8 @@ systemctl start codedeploy-agent
 REGION="${aws_region}"
 ACCOUNT_ID="${account_id}"
 PROJECT_NAME="${project_name}"
-ECR_URL="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/${project_name}-app"
+# No teu ficheiro user_data.sh.tpl, altera para:
+ECR_URL="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/${ecr_repo_name}"
 
 echo "Logging into Amazon ECR..."
 aws ecr get-login-password --region "${aws_region}" | sudo docker login --username AWS --password-stdin "${account_id}.dkr.ecr.${aws_region}.amazonaws.com"

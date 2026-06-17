@@ -64,19 +64,20 @@ module "waf" {
 # 3.(Application)
 
 module "compute" {
-  source             = "./modules/compute"
-  project_name       = var.project_name
-  environment        = var.environment
-  aws_region         = var.aws_region
-  vpc_id             = module.networking.vpc_id
-  private_subnet_ids = module.networking.private_subnet_ids
-  instance_type      = var.instance_type
-  desired_capacity   = var.desired_capacity
-  max_size           = var.max_size
-  min_size           = var.min_size
-  web_sg_id          = module.security.web_sg_id
-  target_group_arn   = module.loadbalancer.target_group_arn
-  kms_key_arn        = module.secrets.kms_key_arn
+  source              = "./modules/compute"
+  project_name        = var.project_name
+  environment         = var.environment
+  aws_region          = var.aws_region
+  vpc_id              = module.networking.vpc_id
+  private_subnet_ids  = module.networking.private_subnet_ids
+  instance_type       = var.instance_type
+  desired_capacity    = var.desired_capacity
+  max_size            = var.max_size
+  min_size            = var.min_size
+  web_sg_id           = module.security.web_sg_id
+  target_group_arn    = module.loadbalancer.target_group_arn
+  kms_key_arn         = module.secrets.kms_key_arn
+  ecr_repository_name = "production-ready-app"
 
 }
 
