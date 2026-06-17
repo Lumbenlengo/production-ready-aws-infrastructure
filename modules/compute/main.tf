@@ -109,7 +109,7 @@ resource "aws_launch_template" "main" {
     aws_region   = var.aws_region
     project_name = var.project_name
     environment  = var.environment
-    account_id   = var.aws_account_id
+    account_id   = data.aws_caller_identity.current.account_id
   }))
 
   tag_specifications {
@@ -126,7 +126,7 @@ resource "aws_launch_template" "main" {
     create_before_destroy = true
   }
 }
-
+data "aws_caller_identity" "current" {}
 # ── AMI Data Source ───────────────────────────────────────────────────
 # Automatically fetches the latest Amazon Linux 2023 image
 data "aws_ami" "amazon_linux" {

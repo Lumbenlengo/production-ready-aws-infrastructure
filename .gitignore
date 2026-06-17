@@ -32,3 +32,6 @@ venv/
 
 # Lambda zip — generated at apply time
 /tmp/*.zip
+
+# Adiciona regra para ignorar todos os ficheiros de variáveis
+*.tfvars
