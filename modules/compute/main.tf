@@ -110,6 +110,7 @@ resource "aws_launch_template" "main" {
     project_name = var.project_name
     environment  = var.environment
     account_id   = data.aws_caller_identity.current.account_id
+
   }))
 
   tag_specifications {
