@@ -23,10 +23,7 @@ output "website_url" {
   value       = "https://${var.domain_name}"
 }
 
-/*output "ecr_repository_url" {
-  description = "ECR repository URL for Docker pushes"
-  value       = module.cicd.ecr_repository_url
-}*/
+
 
 output "kms_key_arn" {
   description = "KMS key ARN used for encryption"
