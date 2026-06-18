@@ -119,11 +119,11 @@ resource "aws_launch_template" "main" {
 
   # User Data script with variables injected from Terraform
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
-    aws_region    = var.aws_region
-    project_name  = var.project_name
-    environment   = var.environment
-    account_id    = data.aws_caller_identity.current.account_id
-    ecr_repo_name = var.ecr_repository_name
+    aws_region          = var.aws_region
+    project_name        = var.project_name
+    environment         = var.environment
+    account_id          = data.aws_caller_identity.current.account_id
+    ecr_repo_name       = var.ecr_repository_name
     dynamodb_table_name = var.dynamodb_table_name
 
   }))
