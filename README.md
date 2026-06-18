@@ -141,3 +141,12 @@ Set per environment in GitHub → Settings → Environments.
 ---
 
 *Built by [Patricio Lumbe](https://patriciolumbe.com)*
+
+## Project Architecture & Production Overview
+This platform implements a high-availability SaaS dashboard built with FastAPI, deployed on AWS infrastructure using Terraform. 
+Key components include:
+- **Compute:** Auto-scaling EC2 instances managed via AWS CodeDeploy.
+- **Monitoring:** Integrated Prometheus and OpenTelemetry for real-time metrics and tracing.
+- **Storage:** DynamoDB for serverless data persistence.
+- **Security:** Managed WAF rules and OIDC-based identity management.
+- **CI/CD:** Automated pipeline triggered by GitHub commits and version tagging.
