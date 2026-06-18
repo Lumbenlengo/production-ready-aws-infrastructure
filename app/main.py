@@ -159,3 +159,6 @@ async def command(payload: dict):
 # 13. ENTRY POINT
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+# Build Metadata
+# Last forced sync: Thu Jun 18 08:33:17 AM UTC 2026
+# Deployment Version: v63
