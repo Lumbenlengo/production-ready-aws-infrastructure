@@ -1,7 +1,6 @@
 import os
 import socket
 import logging
-import threading
 from functools import lru_cache
 import boto3
 import urllib.request 
@@ -13,8 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
 
 # 1. LOGGING CONFIGURATION
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -49,27 +46,7 @@ app.add_middleware(
 )
 logger.info(f" CORS allowed origins: {allowed_origins}")
 
-# 5. TELEMETRY MIDDLEWARE – request/error counters
-_request_counter = {"total": 0, "errors": 0}
-_data_out_bytes = {"value": 0}
-_counter_lock = threading.Lock()
-
-class TelemetryMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        response = await call_next(request)
-        with _counter_lock:
-            _request_counter["total"] += 1
-            if response.status_code >= 400:
-                _request_counter["errors"] += 1
-            content_length = response.headers.get("content-length")
-            if content_length:
-                _data_out_bytes["value"] += int(content_length)
-        return response
-
-app.add_middleware(TelemetryMiddleware)
-logger.info(" TelemetryMiddleware registered")
-
-# 6. STATIC FILES & TEMPLATES – safe mounting (check directories exist)
+# 5. STATIC FILES & TEMPLATES – safe mounting (check directories exist)
 static_dir = "/app/static"
 templates_dir = "/app/templates"
 if os.path.isdir(static_dir):
@@ -83,7 +60,7 @@ else:
     logger.error(f" Templates directory not found: {templates_dir}")
     templates = None
 
-# 7. AWS SERVICES SETUP
+# 6. AWS SERVICES SETUP
 REGION = os.getenv("AWS_REGION", "us-east-1")
 DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", "")
 table = None
@@ -96,7 +73,7 @@ if DYNAMODB_TABLE:
     except Exception as e:
         logger.error(f" AWS Connection Error: {e}")
 
-# 8. HELPERS – cached EC2 metadata
+# 7. HELPERS – cached EC2 metadata
 @lru_cache(maxsize=1)
 def get_availability_zone() -> str:
     """Retrieve Availability Zone from EC2 IMDS v2 (cached)."""
@@ -117,7 +94,7 @@ def get_availability_zone() -> str:
     except Exception:
         return os.getenv("AWS_DEFAULT_AZ", "local-dev")
 
-# 9. HEALTH CHECK ENDPOINT (critical for Docker HEALTHCHECK)
+# 8. HEALTH CHECK ENDPOINT (critical for Docker HEALTHCHECK)
 @app.get("/health", include_in_schema=False)
 async def health():
     return {
@@ -125,7 +102,7 @@ async def health():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
-# 10. INCLUDE MODULAR ROUTES
+# 9. INCLUDE MODULAR ROUTES
 try:
     from api import routes
     app.include_router(routes.router)
@@ -133,7 +110,7 @@ try:
 except ImportError as e:
     logger.warning(f" routes.py not found or failed to import: {e}")
 
-# 11. TELEMETRY ENDPOINT
+# 10. TELEMETRY ENDPOINT
 @app.post("/api/game/score")
 async def update_game_score(data: dict):
     score = data.get("score", 0)
@@ -141,7 +118,7 @@ async def update_game_score(data: dict):
     logger.info(f" GAME TELEMETRY: Player {player} | Score: {score}")
     return {"status": "success", "score_recorded": score}
 
-# 12. MAIN DASHBOARD ROUTE (only if templates exist)
+# 11. MAIN DASHBOARD ROUTE (only if templates exist)
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     if not templates:
@@ -166,22 +143,8 @@ async def dashboard(request: Request):
         ]
     }
     return templates.TemplateResponse(request=request, name="index.html", context=context)
-# 13. NETWORK HEALTH ENDPOINT
-@app.get("/api/network-health")
-async def network_health():
-    with _counter_lock:
-        total = _request_counter["total"]
-        errors = _request_counter["errors"]
-        gb_out = _data_out_bytes["value"] / (1024 ** 3)
-    error_rate_pct = (errors / total * 100) if total > 0 else 0.0
-    return JSONResponse({
-        "error_rate_pct": round(error_rate_pct, 4),
-        "data_out_gb": round(gb_out, 4),
-        "total_requests": total,
-        "error_requests": errors,
-    })
 
-# 14. COMMAND CONSOLE ENDPOINT (safe – no command injection)
+# 12. COMMAND CONSOLE ENDPOINT (safe – no command injection)
 @app.post("/api/command")
 async def command(payload: dict):
     action = payload.get("action", "")
@@ -193,6 +156,6 @@ async def command(payload: dict):
     else:
         return JSONResponse({"message": " Unknown command"}, status_code=400)
 
-# 15. ENTRY POINT
+# 13. ENTRY POINT
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

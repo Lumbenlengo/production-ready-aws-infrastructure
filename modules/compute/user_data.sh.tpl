@@ -41,7 +41,14 @@ sudo docker pull "$ECR_URL:latest"
 echo "Starting application container..."
 # Remove any existing container to avoid naming conflicts
 sudo docker rm -f app-container || true
-sudo docker run -d -p 8000:8000 --name app-container "$ECR_URL:latest"
+
+sudo docker run -d \
+  -p 8000:8000 \
+  --name app-container \
+  -e AWS_REGION="${aws_region}" \
+  -e ENVIRONMENT="${environment}" \
+  -e DYNAMODB_TABLE="${dynamodb_table_name}" \
+  "$ECR_URL:latest"
 
 # 5. Create Environment File
 mkdir -p /opt/app

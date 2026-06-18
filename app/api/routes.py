@@ -2,7 +2,7 @@ import os
 import time
 import socket
 import random
-from datetime import datetime
+from datetime import datetime, timezone  # Updated import
 from typing import Optional
 
 from fastapi import APIRouter, Request, BackgroundTasks, HTTPException, Depends
@@ -43,7 +43,6 @@ class Item(BaseModel):
 
 # MAIN DASHBOARD ROUTE
 
-
 @router.get("/", response_class=HTMLResponse)
 @limiter.limit("60/minute")
 async def read_root(request: Request, hc: HealthCheck = Depends(get_health_check), table=Depends(get_table)):
@@ -67,7 +66,7 @@ async def read_root(request: Request, hc: HealthCheck = Depends(get_health_check
         "region": metadata["region"],
         "instance_id": metadata["instance_id"],
         "item_count": item_count,
-        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "services": [
             {"name": "Load Balancer", "status": "operational"},
             {"name": "Auto Scaling Group", "status": "operational"},
@@ -98,7 +97,6 @@ async def game_page(request: Request):
 
 # GAME API ENDPOINTS
 
-
 @router.post("/api/game/score")
 @limiter.limit("30/minute")
 async def save_game_score(request: Request):
@@ -106,7 +104,7 @@ async def save_game_score(request: Request):
         data = await request.json()
         player_id = data.get("player_id", "Anonymous")
         score = data.get("score", 0)
-        game_scores.append({"player_id": player_id, "score": score, "timestamp": datetime.utcnow().isoformat()})
+        game_scores.append({"player_id": player_id, "score": score, "timestamp": datetime.now(timezone.utc).isoformat()})
         game_scores.sort(key=lambda x: x["score"], reverse=True)
         while len(game_scores) > 10:
             game_scores.pop()
@@ -120,7 +118,6 @@ async def save_game_score(request: Request):
 @limiter.limit("60/minute")
 async def get_leaderboard(request: Request):
     return {"scores": game_scores}
-
 
 # HealthCheck
 
@@ -156,12 +153,11 @@ async def health_html(request: Request, hc: HealthCheck = Depends(get_health_che
         <p><strong>Instance ID:</strong> {metadata['instance_id']}</p>
         <p><strong>Database:</strong> {db_status}</p>
         <p><strong>Uptime:</strong> {hc.get_uptime():.2f} seconds</p>
-        <p><strong>Time:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        <p><strong>Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
     </body></html>
     """)
 
 # API ENDPOINTS
-
 
 @router.get("/api/health")
 @limiter.limit("100/minute")
@@ -177,7 +173,7 @@ async def api_health(request: Request, hc: HealthCheck = Depends(get_health_chec
         "instance_id": metadata["instance_id"],
         "database": db_status,
         "uptime": hc.get_uptime(),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 @router.get("/api/items")
@@ -205,8 +201,8 @@ async def create_item(item: Item, request: Request, background_tasks: Background
         raise HTTPException(status_code=503, detail="Database not configured")
     try:
         item_dict = item.dict()
-        item_dict["id"] = str(int(datetime.utcnow().timestamp()))
-        item_dict["created_at"] = datetime.utcnow().isoformat()
+        item_dict["id"] = str(int(datetime.now(timezone.utc).timestamp()))
+        item_dict["created_at"] = datetime.now(timezone.utc).isoformat()
         item_dict["server"] = socket.gethostname()
         metadata = await get_instance_metadata()
         item_dict["az"] = metadata["az"]

@@ -57,5 +57,8 @@ async def lifespan(app: FastAPI):
 def setup_monitoring(app: FastAPI):
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    Instrumentator().instrument(app).expose(app)
+    Instrumentator(
+        excluded_handlers=[".*health.*", "/metrics"],
+    ).instrument(app).expose(app)
+    
     FastAPIInstrumentor.instrument_app(app)
