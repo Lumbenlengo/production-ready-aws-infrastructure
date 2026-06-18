@@ -78,7 +78,7 @@ module "compute" {
   target_group_arn    = module.loadbalancer.target_group_arn
   kms_key_arn         = module.secrets.kms_key_arn
   ecr_repository_name = "production-ready-app"
-  dynamodb_table_name = module.database.dynamodb_table_name
+  dynamodb_table_name = module.storage.dynamodb_table_name
 
 }
 
