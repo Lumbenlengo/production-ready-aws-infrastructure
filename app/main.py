@@ -162,3 +162,10 @@ if __name__ == "__main__":
 # Build Metadata
 # Last forced sync: Thu Jun 18 08:33:17 AM UTC 2026
 # Deployment Version: v63
+
+# Build Configuration
+BUILD_TIMESTAMP = "Thu Jun 18 08:50:53 AM UTC 2026"
+
+@app.get("/api/build-info")
+async def build_info():
+    return {"build_time": BUILD_TIMESTAMP, "version": "v64"}
