@@ -141,3 +141,8 @@ variable "ecr_repository_name" {
   description = "The name of the ECR repository"
   type        = string
 }
+
+variable "dynamodb_table_name" {
+  description = "Nome da tabela DynamoDB para o compute"
+  type        = string
+}

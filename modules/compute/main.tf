@@ -124,6 +124,7 @@ resource "aws_launch_template" "main" {
     environment   = var.environment
     account_id    = data.aws_caller_identity.current.account_id
     ecr_repo_name = var.ecr_repository_name
+    dynamodb_table_name = var.dynamodb_table_name
 
   }))
 
