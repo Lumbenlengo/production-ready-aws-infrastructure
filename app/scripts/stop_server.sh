@@ -1,7 +1,5 @@
-
 #!/bin/bash
 # stop_server.sh — gracefully stop the running container before new deploy
-
 set -euo pipefail
 
 echo "[CodeDeploy] Stopping existing container..."

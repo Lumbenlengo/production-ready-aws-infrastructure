@@ -2,7 +2,7 @@ import os
 import time
 import socket
 import random
-from datetime import datetime, timezone  # Updated import
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Request, BackgroundTasks, HTTPException, Depends
@@ -118,6 +118,25 @@ async def save_game_score(request: Request):
 @limiter.limit("60/minute")
 async def get_leaderboard(request: Request):
     return {"scores": game_scores}
+
+# NETWORK HEALTH (used by the dashboard's Live Status Bar / Network Health section)
+
+_network_health_request_count = 0
+
+@router.get("/api/network-health")
+@limiter.limit("60/minute")
+async def network_health(request: Request):
+    """Lightweight synthetic network health data for the dashboard's
+    Network Health section (latency, error rate, data out). Real values
+    would come from CloudWatch metrics; this returns safe placeholder
+    data so the frontend doesn't show 'API Down' forever."""
+    global _network_health_request_count
+    _network_health_request_count += 1
+    return {
+        "total_requests": _network_health_request_count,
+        "error_rate_pct": round(random.uniform(0, 1.5), 2),
+        "data_out_gb": round(random.uniform(0.5, 5), 2),
+    }
 
 # HealthCheck
 
