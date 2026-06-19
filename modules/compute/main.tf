@@ -1,7 +1,6 @@
 # modules/compute/main.tf
 
 # IAM Role for EC2 instances
-
 resource "aws_iam_role" "ec2" {
   name = "${var.project_name}-ec2-role-${var.environment}"
 
@@ -42,8 +41,6 @@ resource "aws_iam_role_policy" "ec2_custom" {
         ]
         Resource = "*"
       },
-
-
       {
         Effect   = "Allow"
         Action   = ["kms:Decrypt", "kms:GenerateDataKey"]
@@ -70,6 +67,21 @@ resource "aws_iam_role_policy" "ec2_custom" {
       {
         Effect = "Allow"
         Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.dynamodb_table_name}",
+          "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.dynamodb_table_name}/index/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
@@ -77,7 +89,6 @@ resource "aws_iam_role_policy" "ec2_custom" {
         ]
         Resource = "*"
       }
-
     ]
   })
 }
@@ -87,26 +98,20 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 }
 
-# Launch Template 
-# Defines the blueprint for the EC2 instances in the Auto Scaling Group
 resource "aws_launch_template" "main" {
   name_prefix   = "${var.project_name}-lt-"
   image_id      = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
 
-  # Attach the IAM Role to the instance (needed for ECR and CodeDeploy)
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2.name
   }
 
-  # Use network_interfaces for better control over networking
   network_interfaces {
-    associate_public_ip_address = false # Keeping it private for security
+    associate_public_ip_address = false
     security_groups             = [var.web_sg_id]
   }
 
-  # IMDSv2 — Security Best Practice
-  # Ensures all metadata requests require a session token (protects against SSRF)
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -114,10 +119,9 @@ resource "aws_launch_template" "main" {
   }
 
   monitoring {
-    enabled = true # Detailed monitoring (1-minute intervals) for CloudWatch
+    enabled = true
   }
 
-  # User Data script with variables injected from Terraform
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
     aws_region          = var.aws_region
     project_name        = var.project_name
@@ -125,7 +129,6 @@ resource "aws_launch_template" "main" {
     account_id          = data.aws_caller_identity.current.account_id
     ecr_repo_name       = var.ecr_repository_name
     dynamodb_table_name = var.dynamodb_table_name
-
   }))
 
   tag_specifications {
@@ -137,14 +140,13 @@ resource "aws_launch_template" "main" {
     }
   }
 
-  # Ensures a new template version is created before the old one is deleted
   lifecycle {
     create_before_destroy = true
   }
 }
+
 data "aws_caller_identity" "current" {}
-# ── AMI Data Source ───────────────────────────────────────────────────
-# Automatically fetches the latest Amazon Linux 2023 image
+
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -159,7 +161,6 @@ data "aws_ami" "amazon_linux" {
     values = ["hvm"]
   }
 }
-# Auto Scaling Group 
 
 resource "aws_autoscaling_group" "main" {
   name                = "${var.project_name}-asg-${var.environment}"
@@ -171,9 +172,7 @@ resource "aws_autoscaling_group" "main" {
   max_size         = var.max_size
   desired_capacity = var.desired_capacity
 
-  # Wait for health checks before marking deploy complete
   health_check_grace_period = 600
-
   wait_for_capacity_timeout = "20m"
 
   launch_template {
@@ -206,8 +205,6 @@ resource "aws_autoscaling_group" "main" {
   }
 }
 
-# Target Tracking Scaling Policy (50% CPU) 
-
 resource "aws_autoscaling_policy" "cpu_tracking" {
   name                   = "${var.project_name}-cpu-tracking-${var.environment}"
   autoscaling_group_name = aws_autoscaling_group.main.name
@@ -220,4 +217,3 @@ resource "aws_autoscaling_policy" "cpu_tracking" {
     target_value = 50.0
   }
 }
-
