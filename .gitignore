@@ -33,5 +33,9 @@ venv/
 # Lambda zip — generated at apply time
 /tmp/*.zip
 
-# Adiciona regra para ignorar todos os ficheiros de variáveis
-*.tfvars
+# Editor swap files
+*.swp
+*.swo
+
+# Local Terraform lock info, never meant to be committed
+*.tfstate.lock.info

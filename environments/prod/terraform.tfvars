@@ -12,7 +12,7 @@ min_size            = 2
 alert_email         = "patriciolumbee@gmail.com"
 ecr_repository_name = "production-ready-app"
 github_owner        = "Lumbenlengo"
-owner               = "Patricio_Lumbe"
+owner               = "Patricio Lumbe"
 github_repo_name    = "production-ready-aws-infrastructure"
 github_repo_url     = "https://github.com/Lumbenlengo/production-ready-aws-infrastructure"
 
