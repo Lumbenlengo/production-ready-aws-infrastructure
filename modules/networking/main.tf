@@ -17,7 +17,7 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  # Seleciona as primeiras duas AZs disponíveis na região de forma dinâmica
+  # Picks the first two available AZs in the region dynamically
   azs = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 

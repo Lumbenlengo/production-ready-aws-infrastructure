@@ -1,6 +1,60 @@
 # modules/security/main.tf
 
-# Web Security Group (EC2 instances) 
+# GitHub OIDC (used by GitHub Actions to assume an AWS role, no static keys)
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea"]
+
+  tags = {
+    Name = "${var.project_name}-github-oidc"
+  }
+}
+
+data "aws_iam_policy_document" "github_actions_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_owner}/${var.github_repo_name}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions" {
+  name               = "${var.project_name}-github-actions-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_trust.json
+
+  tags = {
+    Name = "${var.project_name}-github-actions"
+  }
+}
+
+# The pipeline manages every AWS service in this project (networking, compute,
+# security, storage, IAM), so the role needs broad access. Scoping happens at
+# the trust policy above, not here — only workflow runs from this exact repo
+# can ever assume it, and the credentials expire with the run.
+resource "aws_iam_role_policy_attachment" "github_actions_admin" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# Web Security Group (EC2 instances)
 
 resource "aws_security_group" "web_sg" {
   name        = "${var.project_name}-web-sg-${var.environment}"

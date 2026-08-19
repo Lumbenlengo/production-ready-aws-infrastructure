@@ -1,11 +1,6 @@
 # Production-Ready AWS Infrastructure
 
-> Production-style AWS infrastructure built with Terraform, following modern cloud engineering, security and DevOps best practices.
-
-
-# Production-Ready AWS Infrastructure
-
-> A production-style AWS environment built with Terraform, following modern cloud engineering, security, and DevOps practices  Infrastructure as Code, Multi-AZ high availability, automated CI/CD, and defense-in-depth security.
+> A production-style AWS environment built with Terraform, following modern cloud engineering, security, and DevOps practices: Infrastructure as Code, Multi-AZ high availability, automated CI/CD, and defense-in-depth security.
 
 <p>
   <img src="https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white" height="20">
@@ -109,13 +104,13 @@ production-ready-aws-infrastructure/
 ├── main.tf                       # Root module — wires up all child modules
 ├── variables.tf / outputs.tf
 ├── provider.tf
+├── Dockerfile                     # Multi-stage build, non-root user
 ├── modules/
 │   ├── networking/                # VPC, subnets, NAT GW, IGW, route tables, VPC Flow Logs
 │   ├── compute/                   # ASG, launch template, IAM instance role
 │   ├── loadbalancer/               # ALB, target group, listeners, ACM
 │   ├── security/                   # OIDC provider, GuardDuty, Security Hub, IAM Access Analyzer
 │   ├── monitoring/                 # CloudWatch, SNS, alarms, CloudTrail, SLO Lambda
-│   ├── cicd/                       # CodePipeline, CodeBuild, CodeDeploy, ECR
 │   ├── secrets/                    # Secrets Manager, Parameter Store, KMS
 │   ├── compliance/                 # AWS Config rules, AWS Backup
 │   ├── storage/                    # S3 artifacts bucket, DynamoDB table
@@ -128,19 +123,17 @@ production-ready-aws-infrastructure/
 │   ├── main.py                     # FastAPI: /health/live, /health/ready, /items
 │   ├── api/                        # routes.py
 │   ├── core/                       # aws_service.py, monitoring.py
-│   ├── Dockerfile                  # Multi-stage build, non-root user
 │   ├── buildspec.yml                # CodeBuild: test → Docker build → ECR push
 │   ├── appspec.yml                  # CodeDeploy lifecycle hooks
 │   └── scripts/                     # start/stop server, health check, install deps
 ├── .github/workflows/
-│   ├── aws-check.yml                # Validate + plan on every PR
+│   ├── validate.yml                 # Validate + plan on every PR
 │   ├── deploy-dev.yml               # Auto-apply on push to develop
-│   ├── deploy-staging.yml           # Auto-apply on merge to main
-│   ├── deploy-prod.yml              # Manual approval, triggered by tag v*.*.*
-│   └── destroy-dev.yml              # Manual destroy, requires typed confirmation
+│   ├── deploy-staging.yml           # Auto-apply on push to main
+│   ├── deploy-production.yml        # Manual approval, triggered by tag v*.*.*
+│   └── destroy-production.yml       # Manual destroy, requires typed confirmation
 └── docs/
     ├── slo.md                       # SLO definitions and error-budget runbook
-    ├── images/architecture.png      # Architecture diagram
     └── adr/                         # Architecture Decision Records
 ```
 
@@ -221,7 +214,7 @@ git clone https://github.com/<your-username>/production-ready-aws-infrastructure
 cd production-ready-aws-infrastructure
 
 # Initialize with the dev backend
-terraform init -backend-config=environments/dev/backend.tf
+terraform init -backend-config=environments/dev/backend.hcl
 
 # Review the plan
 terraform plan -var-file=environments/dev/terraform.tfvars
@@ -239,6 +232,7 @@ Required GitHub Secrets (set per environment under **Settings → Environments**
 | `AWS_ROLE_ARN` | IAM role assumed via OIDC |
 | `DB_PASSWORD` | 16+ characters |
 | `API_KEY` | Any non-empty string |
+| `ECR_REPOSITORY_NAME` | ECR repository the app image is pushed to |
 
 ---
 

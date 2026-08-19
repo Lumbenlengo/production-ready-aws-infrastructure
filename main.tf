@@ -43,12 +43,14 @@ module "loadbalancer" {
 }
 
 module "security" {
-  source       = "./modules/security"
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_id       = module.networking.vpc_id
-  my_ip        = var.my_ip
-  alb_sg_id    = module.loadbalancer.alb_sg_id
+  source           = "./modules/security"
+  project_name     = var.project_name
+  environment      = var.environment
+  vpc_id           = module.networking.vpc_id
+  my_ip            = var.my_ip
+  alb_sg_id        = module.loadbalancer.alb_sg_id
+  github_owner     = var.github_owner
+  github_repo_name = var.github_repo_name
 }
 
 module "waf" {

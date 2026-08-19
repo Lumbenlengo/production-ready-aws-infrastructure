@@ -44,3 +44,8 @@ output "subdomain_ns" {
   description = "Route53 hosted zone nameservers"
   value       = module.networking.hosted_zone_name_servers
 }
+
+output "github_actions_role_arn" {
+  description = "IAM role GitHub Actions assumes via OIDC — set this as the AWS_ROLE_ARN secret"
+  value       = module.security.github_actions_role_arn
+}
